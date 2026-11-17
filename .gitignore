@@ -1,0 +1,14 @@
+# Local browser automation artifacts
+.playwright-cli/
+output/
+
+# Local environment and editor files
+.env
+.env.*
+!.env.example
+node_modules/
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db

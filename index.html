@@ -1,0 +1,3371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Jelly Bag — Confectionery Physics Heavy Bag</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;600;700&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0a09;
+      --panel-bg: rgba(18, 17, 16, 0.88);
+      --panel-border: rgba(255, 255, 255, 0.09);
+      --card-bg: #090808;
+      --text-main: #f5f2eb;
+      --text-muted: rgba(245, 242, 235, 0.56);
+      --text-dim: rgba(245, 242, 235, 0.36);
+      --gold: #f6c445;
+      --accent: #ff2a4b;
+      --accent-soft: rgba(255, 42, 75, 0.22);
+      --font-display: 'Bebas Neue', Impact, sans-serif;
+      --font-ui: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    #viewport {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #gl-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+      touch-action: none;
+      outline: none;
+    }
+
+    #gl-canvas.grabbing {
+      cursor: grabbing;
+    }
+
+    #gl-canvas.orbiting {
+      cursor: move;
+    }
+
+    /* Atmospheric radial vignette over canvas */
+    .vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      background:
+        radial-gradient(circle at 42% 48%, rgba(0, 0, 0, 0) 34%, rgba(5, 4, 4, 0.52) 78%, rgba(2, 2, 2, 0.88) 100%);
+    }
+
+    /* Top-left Editorial Branding */
+    .brand-header {
+      position: fixed;
+      top: 26px;
+      left: 30px;
+      z-index: 10;
+      pointer-events: none;
+      max-width: 280px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      transition: background-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: clamp(58px, 6.5vw, 86px);
+      line-height: 0.88;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--text-main);
+      margin-bottom: 10px;
+      text-shadow: 0 8px 28px rgba(0, 0, 0, 0.65);
+    }
+
+    .brand-title .slash {
+      color: var(--accent);
+      font-weight: 400;
+      margin: 0 2px;
+      transition: color 0.25s ease;
+    }
+
+    .brand-title .bag-word {
+      display: block;
+      color: var(--accent);
+      transition: color 0.25s ease;
+    }
+
+    .brand-lede {
+      font-size: 13px;
+      line-height: 1.48;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    /* Bottom-left How-to Card */
+    .howto-card {
+      position: fixed;
+      left: 30px;
+      bottom: 26px;
+      z-index: 10;
+      pointer-events: none;
+      background: rgba(15, 14, 13, 0.72);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 12px;
+      padding: 12px 15px;
+      max-width: 325px;
+    }
+
+    .howto-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .howto-main {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 5px;
+    }
+
+    .howto-sub {
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: var(--text-muted);
+    }
+
+    .kbd {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: var(--text-main);
+      margin: 0 1px;
+    }
+
+    /* Right Control Panel */
+    .control-panel {
+      position: fixed;
+      top: 22px;
+      right: 22px;
+      width: 288px;
+      max-height: calc(100vh - 44px);
+      overflow-y: auto;
+      z-index: 20;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 14px;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.18) transparent;
+    }
+
+    /* Top Bar inside Panel */
+    .panel-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulseDot 1.8s infinite ease-in-out;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.82); }
+    }
+
+    .top-toggles {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .pill-toggle {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 9px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+
+    .pill-toggle:hover {
+      border-color: rgba(255, 255, 255, 0.28);
+      color: var(--text-main);
+    }
+
+    .pill-toggle[aria-pressed="true"] {
+      background: var(--text-main);
+      color: #090808;
+      border-color: var(--text-main);
+    }
+
+    /* Scoreboard Card */
+    .scoreboard {
+      background: var(--card-bg);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .score-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .section-tag {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .reset-link {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      padding: 2px 4px;
+      transition: color 0.15s ease;
+    }
+
+    .reset-link:hover {
+      color: var(--text-main);
+    }
+
+    .force-readout-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-top: 1px;
+    }
+
+    .force-value {
+      font-family: var(--font-display);
+      font-size: 52px;
+      line-height: 0.92;
+      color: var(--gold);
+      letter-spacing: 0.02em;
+      text-shadow: 0 0 22px rgba(246, 196, 69, 0.28);
+      transition: transform 0.08s ease;
+    }
+
+    .force-value.bump {
+      transform: scale(1.09);
+    }
+
+    .force-unit {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(246, 196, 69, 0.72);
+      text-transform: uppercase;
+    }
+
+    .rank-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 18px;
+    }
+
+    .rank-text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-main);
+      transition: color 0.2s ease, text-shadow 0.2s ease;
+    }
+
+    .rank-text.new-best {
+      color: var(--gold);
+      text-shadow: 0 0 12px rgba(246, 196, 69, 0.65);
+    }
+
+    .new-best-pill {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(246, 196, 69, 0.18);
+      border: 1px solid rgba(246, 196, 69, 0.5);
+      color: var(--gold);
+      opacity: 0;
+      transform: translateY(2px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .new-best-pill.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Meter Bar (green -> gold -> red) */
+    .meter-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #32d74b 0%, #f6c445 55%, #ff2d55 100%);
+      background-size: 260px 100%;
+      transition: width 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Stats Row: Best / Punches / Combo */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .stat-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .stat-val {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .stat-val.combo-hot {
+      color: var(--gold);
+    }
+
+    /* Control Sections */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .swatch-btn {
+      appearance: none;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 10px;
+      padding: 7px 4px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.16s ease;
+    }
+
+    .swatch-btn:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.22);
+      color: var(--text-main);
+    }
+
+    .swatch-btn.active {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: var(--text-main);
+      color: var(--text-main);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
+    }
+
+    .flavour-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      position: relative;
+      box-shadow: inset 0 -3px 6px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.4);
+    }
+
+    .flavour-dot::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 4px;
+      width: 6px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.65);
+      transform: rotate(-25deg);
+    }
+
+    .wrap-icon {
+      width: 20px;
+      height: 16px;
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: #231f1e;
+    }
+
+    .wrap-icon.classic::before {
+      content: '';
+      position: absolute;
+      inset: 3px 2px;
+      background: #f5f2eb;
+      border: 1px solid #d92638;
+      border-radius: 1px;
+    }
+
+    .wrap-icon.stripes::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 22%, #f5f2eb 22%, #f5f2eb 42%, transparent 42%, transparent 58%, #f6c445 58%, #f6c445 78%, transparent 78%);
+    }
+
+    .wrap-icon.flames::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(0deg, #ff2a1f 0%, #ff8c1a 55%, #ffd426 85%, transparent 100%);
+      clip-path: polygon(0% 100%, 0% 45%, 25% 15%, 50% 55%, 75% 10%, 100% 45%, 100% 100%);
+    }
+
+    .wrap-icon.plain::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: #141211;
+      border-bottom: 1px dashed rgba(255,255,255,0.45);
+    }
+
+    .swatch-name {
+      font-size: 10.5px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    /* Sliders */
+    .sliders-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-top: 2px;
+    }
+
+    .slider-block {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .slider-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .slider-val {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    input[type="range"].jelly-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"].jelly-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--text-main);
+      border: 2px solid #0b0a09;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 2px 6px rgba(0,0,0,0.6);
+      transition: transform 0.12s ease, background-color 0.2s ease;
+    }
+
+    input[type="range"].jelly-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      background: var(--gold);
+    }
+
+    input[type="range"].jelly-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--text-main);
+      border: 2px solid #0b0a09;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+    }
+
+    /* Conic Charge Ring around Cursor */
+    #charge-ring {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 68px;
+      height: 68px;
+      margin-left: -34px;
+      margin-top: -34px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 30;
+      opacity: 0;
+      transform: scale(0.78);
+      transition: opacity 0.12s ease, transform 0.12s ease;
+      background: conic-gradient(from -90deg, var(--gold) 0deg, var(--accent) var(--charge-deg, 0deg), rgba(255,255,255,0.08) var(--charge-deg, 0deg), rgba(255,255,255,0.08) 360deg);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+      mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+      box-shadow: 0 0 20px rgba(246, 196, 69, 0.35);
+    }
+
+    #charge-ring.active {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    #charge-label {
+      position: fixed;
+      top: 0;
+      left: 0;
+      transform: translate(-50%, 38px);
+      pointer-events: none;
+      z-index: 30;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--gold);
+      text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+
+    #charge-label.active {
+      opacity: 1;
+    }
+
+    /* Floating Hit Force Popups */
+    #popups-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 25;
+      overflow: hidden;
+    }
+
+    .force-popup {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      font-family: var(--font-display);
+      font-size: 32px;
+      line-height: 1;
+      color: var(--gold);
+      letter-spacing: 0.03em;
+      text-shadow: 0 3px 14px rgba(0, 0, 0, 0.85), 0 0 16px rgba(246, 196, 69, 0.45);
+      white-space: nowrap;
+      pointer-events: none;
+      animation: floatUpPop 0.92s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .force-popup .unit {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 3px;
+      color: #fff2c2;
+    }
+
+    .force-popup .combo-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 6px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(246, 196, 69, 0.22);
+      border: 1px solid rgba(246, 196, 69, 0.55);
+      color: var(--gold);
+      vertical-align: middle;
+    }
+
+    @keyframes floatUpPop {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -25%) scale(0.65);
+      }
+      16% {
+        opacity: 1;
+        transform: translate(-50%, -60%) scale(1.08);
+      }
+      32% {
+        transform: translate(-50%, -78%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -155%) scale(0.94);
+      }
+    }
+
+    /* WebGL2 Fallback Overlay */
+    #webgl-fallback {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: #0b0a09;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .fallback-box {
+      max-width: 420px;
+      background: rgba(24, 22, 20, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 28px 24px;
+    }
+
+    .fallback-title {
+      font-family: var(--font-display);
+      font-size: 38px;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+
+    .fallback-desc {
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--text-muted);
+    }
+
+    /* Mobile Bottom Sheet Responsive Layout */
+    @media (max-width: 768px) {
+      .brand-header {
+        top: 14px;
+        left: 16px;
+        max-width: 215px;
+      }
+
+      .eyebrow {
+        font-size: 8.5px;
+        margin-bottom: 3px;
+      }
+
+      .brand-title {
+        font-size: 42px;
+        margin-bottom: 4px;
+      }
+
+      .brand-title .bag-word {
+        display: inline;
+      }
+
+      .brand-lede {
+        font-size: 11px;
+        line-height: 1.35;
+      }
+
+      .howto-card {
+        top: 14px;
+        right: 14px;
+        left: auto;
+        bottom: auto;
+        padding: 7px 10px;
+        max-width: 155px;
+      }
+
+      .howto-label {
+        display: none;
+      }
+
+      .howto-main {
+        font-size: 10.5px;
+        margin-bottom: 2px;
+      }
+
+      .howto-sub {
+        font-size: 9.5px;
+        line-height: 1.3;
+      }
+
+      .control-panel {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-height: 43vh;
+        border-radius: 18px 18px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        padding: 10px 14px 14px;
+        gap: 8px;
+      }
+
+      .scoreboard {
+        padding: 8px 11px;
+        gap: 5px;
+      }
+
+      .force-value {
+        font-size: 38px;
+      }
+
+      .sliders-wrap {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="viewport">
+    <canvas id="gl-canvas" tabindex="0" role="application" aria-label="Interactive 3D Jelly Heavy Bag boxing simulation. Click or tap the bag to jab, hold to charge a power punch, drag the bag to swing it, or drag the background to orbit the camera."></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+  </div>
+
+  <!-- Top-left Editorial Title -->
+  <header class="brand-header">
+    <div class="eyebrow">
+      <span class="eyebrow-dot" id="eyebrow-dot"></span>
+      <span>Confectionery physics · No. 10</span>
+    </div>
+    <h1 class="brand-title">Jelly <span class="slash">/</span> <span class="bag-word">Bag.</span></h1>
+    <p class="brand-lede">A heavy bag made of gummy candy. It takes every hit and wobbles back for more.</p>
+  </header>
+
+  <!-- How-to Play Card -->
+  <aside class="howto-card" aria-label="Controls guide">
+    <div class="howto-label">How to play</div>
+    <div class="howto-main">Click to jab. Hold to load a power punch.</div>
+    <div class="howto-sub">
+      Drag the bag to swing it. <span class="kbd">Space</span> jabs, hold it to charge. <span class="kbd">Enter</span> jabs. Drag the background to walk around it.
+    </div>
+  </aside>
+
+  <!-- Charge Ring UI -->
+  <div id="charge-ring" aria-hidden="true"></div>
+  <div id="charge-label" aria-hidden="true">100%</div>
+
+  <!-- Floating Force Popups Layer -->
+  <div id="popups-layer" aria-live="polite"></div>
+
+  <!-- Right Control Panel / Mobile Bottom Sheet -->
+  <section class="control-panel" id="ui-panel" aria-label="Bag controls and scoreboard">
+    <div class="panel-topbar">
+      <div class="live-badge">
+        <span class="live-dot"></span>
+        <span>Round 1 · live</span>
+      </div>
+      <div class="top-toggles">
+        <button type="button" id="toggle-gloves" class="pill-toggle" aria-pressed="true" aria-label="Toggle 3D boxing gloves">Gloves</button>
+        <button type="button" id="toggle-sound" class="pill-toggle" aria-pressed="false" aria-label="Toggle synthesized sound effects">Sound</button>
+      </div>
+    </div>
+
+    <!-- Black Scoreboard -->
+    <div class="scoreboard">
+      <div class="score-header">
+        <span class="section-tag">Punch Force</span>
+        <button type="button" id="btn-reset" class="reset-link" aria-label="Reset scoreboard and best punch force">Reset</button>
+      </div>
+      <div class="force-readout-row">
+        <span class="force-value" id="force-readout">0</span>
+        <span class="force-unit">kg</span>
+      </div>
+      <div class="rank-line">
+        <span class="rank-text" id="rank-readout">Ready to Spar</span>
+        <span class="new-best-pill" id="new-best-pill">New Best!</span>
+      </div>
+      <div class="meter-track" role="progressbar" aria-label="Punch power meter" aria-valuemin="0" aria-valuemax="1000" aria-valuenow="0" id="force-meter-bar">
+        <div class="meter-fill" id="meter-fill"></div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-cell">
+          <span class="stat-label">Best</span>
+          <span class="stat-val" id="stat-best">0</span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-label">Punches</span>
+          <span class="stat-val" id="stat-punches">0</span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-label">Combo</span>
+          <span class="stat-val" id="stat-combo">×0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flavour Swatches -->
+    <div class="control-group">
+      <div class="group-header">
+        <span class="section-tag">Flavour</span>
+        <span class="section-tag" id="flavour-active-label">Cherry</span>
+      </div>
+      <div class="swatch-grid" role="radiogroup" aria-label="Gummy candy flavour">
+        <button type="button" class="swatch-btn active" data-flavour="cherry" role="radio" aria-checked="true" aria-label="Cherry flavour">
+          <span class="flavour-dot" style="background: radial-gradient(circle at 35% 35%, #ff5c77, #d90429 70%, #6e0010);"></span>
+          <span class="swatch-name">Cherry</span>
+        </button>
+        <button type="button" class="swatch-btn" data-flavour="blueberry" role="radio" aria-checked="false" aria-label="Blueberry flavour">
+          <span class="flavour-dot" style="background: radial-gradient(circle at 35% 35%, #6ba3ff, #1245e8 70%, #051866);"></span>
+          <span class="swatch-name">Blueberry</span>
+        </button>
+        <button type="button" class="swatch-btn" data-flavour="lime" role="radio" aria-checked="false" aria-label="Lime flavour">
+          <span class="flavour-dot" style="background: radial-gradient(circle at 35% 35%, #a8ff5e, #38b800 70%, #144900);"></span>
+          <span class="swatch-name">Lime</span>
+        </button>
+        <button type="button" class="swatch-btn" data-flavour="cola" role="radio" aria-checked="false" aria-label="Cola flavour">
+          <span class="flavour-dot" style="background: radial-gradient(circle at 35% 35%, #f59c56, #a13706 70%, #3b1000);"></span>
+          <span class="swatch-name">Cola</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Wrap Swatches -->
+    <div class="control-group">
+      <div class="group-header">
+        <span class="section-tag">Wrap</span>
+        <span class="section-tag" id="wrap-active-label">Classic</span>
+      </div>
+      <div class="swatch-grid" role="radiogroup" aria-label="Bag overlay wrap style">
+        <button type="button" class="swatch-btn active" data-wrap="0" role="radio" aria-checked="true" aria-label="Classic wrap with label">
+          <span class="wrap-icon classic"></span>
+          <span class="swatch-name">Classic</span>
+        </button>
+        <button type="button" class="swatch-btn" data-wrap="1" role="radio" aria-checked="false" aria-label="Racing stripes wrap">
+          <span class="wrap-icon stripes"></span>
+          <span class="swatch-name">Stripes</span>
+        </button>
+        <button type="button" class="swatch-btn" data-wrap="2" role="radio" aria-checked="false" aria-label="Flames wrap">
+          <span class="wrap-icon flames"></span>
+          <span class="swatch-name">Flames</span>
+        </button>
+        <button type="button" class="swatch-btn" data-wrap="3" role="radio" aria-checked="false" aria-label="Plain leather caps wrap">
+          <span class="wrap-icon plain"></span>
+          <span class="swatch-name">Plain</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Physics Sliders -->
+    <div class="sliders-wrap">
+      <div class="slider-block">
+        <label class="slider-label-row" for="slider-firmness">
+          <span>Firmness</span>
+          <span class="slider-val" id="val-firmness">50</span>
+        </label>
+        <input type="range" id="slider-firmness" class="jelly-slider" min="15" max="100" value="50" aria-label="Jelly firmness" />
+      </div>
+      <div class="slider-block">
+        <label class="slider-label-row" for="slider-damping">
+          <span>Wobble damping</span>
+          <span class="slider-val" id="val-damping">30</span>
+        </label>
+        <input type="range" id="slider-damping" class="jelly-slider" min="5" max="90" value="30" aria-label="Wobble damping" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Polite WebGL2 Fallback -->
+  <div id="webgl-fallback" role="alert">
+    <div class="fallback-box">
+      <h2 class="fallback-title">WebGL 2 Required</h2>
+      <p class="fallback-desc">
+        Jelly Bag uses real-time GPU float textures and physically based light transmission to simulate a squishy gummy candy heavy bag. Please open this page in a modern browser with WebGL 2 enabled.
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+    // ============================================================================
+    // 1. WEBGL2 SUPPORT CHECK
+    // ============================================================================
+    const canvas = document.getElementById('gl-canvas');
+    const glTest = document.createElement('canvas').getContext('webgl2');
+    if (!glTest) {
+      document.getElementById('webgl-fallback').style.display = 'flex';
+      throw new Error('WebGL2 unavailable');
+    }
+
+    // ============================================================================
+    // 2. FLAVOURS & STATE CONFIGURATION
+    // ============================================================================
+    const FLAVOURS = {
+      cherry: {
+        name: 'Cherry',
+        color: '#ff1c3b',
+        attenuation: '#a80018',
+        sheen: '#ff7a8e',
+        emissive: '#4d000b',
+        shadowTint: '#3d040c',
+        accent: '#ff2a4b'
+      },
+      blueberry: {
+        name: 'Blueberry',
+        color: '#1b5cff',
+        attenuation: '#00249c',
+        sheen: '#78adff',
+        emissive: '#04144d',
+        shadowTint: '#051542',
+        accent: '#3d7eff'
+      },
+      lime: {
+        name: 'Lime',
+        color: '#4ee014',
+        attenuation: '#187500',
+        sheen: '#aaff6b',
+        emissive: '#0d3600',
+        shadowTint: '#0d3004',
+        accent: '#65e82c'
+      },
+      cola: {
+        name: 'Cola',
+        color: '#c44b10',
+        attenuation: '#471300',
+        sheen: '#ffa063',
+        emissive: '#2e0a00',
+        shadowTint: '#290e03',
+        accent: '#e8722e'
+      }
+    };
+
+    const WRAP_NAMES = ['Classic', 'Stripes', 'Flames', 'Plain'];
+    const STORAGE_KEY = 'jelly_bag_best_kg_v1';
+
+    let bestScore = 0;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved !== null && !isNaN(parseInt(saved, 10))) {
+        bestScore = Math.max(0, parseInt(saved, 10));
+      }
+    } catch (e) {
+      // Ignore storage access errors in restricted contexts
+    }
+
+    const state = {
+      flavour: 'cherry',
+      wrap: 0,
+      glovesVisible: true,
+      soundEnabled: false,
+      firmness: 50,
+      damping: 30,
+      lastForce: 0,
+      bestForce: bestScore,
+      punches: 0,
+      combo: 0,
+      lastHitTime: -100,
+      nextGloveHand: 0 // 0 = left, 1 = right
+    };
+
+    document.getElementById('stat-best').textContent = String(state.bestForce);
+
+    // ============================================================================
+    // 3. SYNTHESIZED WEBAUDIO SOUND ENGINE (OFF BY DEFAULT)
+    // ============================================================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.noiseBuf = null;
+      }
+
+      ensureContext() {
+        if (!state.soundEnabled) return null;
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return null;
+          this.ctx = new AudioCtx();
+          // Pre-build 0.25s white noise buffer for leather smack
+          const sr = this.ctx.sampleRate;
+          const len = Math.floor(sr * 0.25);
+          this.noiseBuf = this.ctx.createBuffer(1, len, sr);
+          const data = this.noiseBuf.getChannelData(0);
+          for (let i = 0; i < len; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sr * 0.035));
+          }
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+        return this.ctx;
+      }
+
+      playPunch(power = 0.5) {
+        const ctx = this.ensureContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const p = Math.max(0.2, Math.min(1.0, power));
+
+        // 1. Filtered noise smack
+        const noise = ctx.createBufferSource();
+        noise.buffer = this.noiseBuf;
+        const bandpass = ctx.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.frequency.setValueAtTime(950 + p * 650, now);
+        bandpass.Q.setValueAtTime(1.4, now);
+        const smackGain = ctx.createGain();
+        smackGain.gain.setValueAtTime(0.32 * (0.55 + 0.45 * p), now);
+        smackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+        noise.connect(bandpass).connect(smackGain).connect(ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.09);
+
+        // 2. Low sine heavy bag thud
+        const thudOsc = ctx.createOscillator();
+        thudOsc.type = 'sine';
+        thudOsc.frequency.setValueAtTime(135 + p * 45, now);
+        thudOsc.frequency.exponentialRampToValueAtTime(38, now + 0.14);
+        const thudGain = ctx.createGain();
+        thudGain.gain.setValueAtTime(0.45 * (0.5 + 0.5 * p), now);
+        thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        thudOsc.connect(thudGain).connect(ctx.destination);
+        thudOsc.start(now);
+        thudOsc.stop(now + 0.17);
+
+        // 3. Jelly "boing" (pitch-dropping sine with LFO wobble)
+        const boingOsc = ctx.createOscillator();
+        boingOsc.type = 'sine';
+        const baseFreq = 195 + p * 65;
+        boingOsc.frequency.setValueAtTime(baseFreq, now + 0.02);
+        boingOsc.frequency.exponentialRampToValueAtTime(98, now + 0.44);
+
+        const lfo = ctx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.setValueAtTime(22 + p * 8, now + 0.02);
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.setValueAtTime(28 * p, now + 0.02);
+        lfoGain.gain.exponentialRampToValueAtTime(2, now + 0.44);
+        lfo.connect(lfoGain).connect(boingOsc.frequency);
+
+        const boingGain = ctx.createGain();
+        boingGain.gain.setValueAtTime(0.001, now);
+        boingGain.gain.linearRampToValueAtTime(0.18 * (0.5 + 0.5 * p), now + 0.035);
+        boingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+        boingOsc.connect(boingGain).connect(ctx.destination);
+        boingOsc.start(now + 0.02);
+        lfo.start(now + 0.02);
+        boingOsc.stop(now + 0.46);
+        lfo.stop(now + 0.46);
+      }
+
+      playBellDing() {
+        const ctx = this.ensureContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        // Three-partial boxing ring / achievement bell ding
+        const partials = [
+          { freq: 1174.66, amp: 0.20, decay: 0.95 }, // D6
+          { freq: 2349.32, amp: 0.11, decay: 0.65 }, // D7
+          { freq: 3135.96, amp: 0.08, decay: 0.45 }  // G7
+        ];
+        partials.forEach((pt) => {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(pt.freq, now);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(pt.amp, now);
+          g.gain.exponentialRampToValueAtTime(0.0008, now + pt.decay);
+          osc.connect(g).connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + pt.decay + 0.02);
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // ============================================================================
+    // 4. BAG SIGNED DISTANCE FIELD (SDF) & SURFACE NETS MESHER
+    // ============================================================================
+    const BAG_RADIUS = 0.42;
+    const BAG_HALF_HEIGHT = 0.80;
+    const BAG_ROUNDING = 0.15;
+    const BAG_BULGE = 0.045;
+
+    function bagSDF(x, y, z) {
+      const r = Math.hypot(x, z);
+      const yn = Math.min(1.0, Math.abs(y) / BAG_HALF_HEIGHT);
+      const bulge = 1.0 + BAG_BULGE * (1.0 - yn * yn);
+      const rad = BAG_RADIUS * bulge;
+      const dx = r - (rad - BAG_ROUNDING);
+      const dy = Math.abs(y) - (BAG_HALF_HEIGHT - BAG_ROUNDING);
+      const ox = dx > 0.0 ? dx : 0.0;
+      const oy = dy > 0.0 ? dy : 0.0;
+      const inside = dx > dy ? dx : dy;
+      return Math.hypot(ox, oy) + (inside < 0.0 ? inside : 0.0) - BAG_ROUNDING;
+    }
+
+    function bagSDFGrad(x, y, z, out) {
+      const eps = 0.0015;
+      const gx = bagSDF(x + eps, y, z) - bagSDF(x - eps, y, z);
+      const gy = bagSDF(x, y + eps, z) - bagSDF(x, y - eps, z);
+      const gz = bagSDF(x, y, z + eps) - bagSDF(x, y, z - eps);
+      const inv = 1.0 / (Math.hypot(gx, gy, gz) || 1.0);
+      out.set(gx * inv, gy * inv, gz * inv);
+      return out;
+    }
+
+    function buildSurfaceNetsBagGeometry(cellSize = 0.017) {
+      const maxR = BAG_RADIUS * (1.0 + BAG_BULGE) + cellSize * 2.5;
+      const maxY = BAG_HALF_HEIGHT + cellSize * 2.5;
+      const nx = Math.ceil((2.0 * maxR) / cellSize);
+      const ny = Math.ceil((2.0 * maxY) / cellSize);
+      const nz = nx;
+
+      const ox = -0.5 * nx * cellSize;
+      const oy = -0.5 * ny * cellSize;
+      const oz = -0.5 * nz * cellSize;
+
+      const gxCount = nx + 1;
+      const gyCount = ny + 1;
+      const gzCount = nz + 1;
+      const strideY = gxCount;
+      const strideZ = gxCount * gyCount;
+
+      const sdfGrid = new Float32Array(gxCount * gyCount * gzCount);
+
+      for (let iz = 0; iz < gzCount; iz++) {
+        const z = oz + iz * cellSize;
+        for (let iy = 0; iy < gyCount; iy++) {
+          const y = oy + iy * cellSize;
+          const rowOffset = iz * strideZ + iy * strideY;
+          for (let ix = 0; ix < gxCount; ix++) {
+            const x = ox + ix * cellSize;
+            sdfGrid[rowOffset + ix] = bagSDF(x, y, z);
+          }
+        }
+      }
+
+      const cellVertMap = new Int32Array(nx * ny * nz);
+      cellVertMap.fill(-1);
+      const cellStrideY = nx;
+      const cellStrideZ = nx * ny;
+
+      const positions = [];
+      const cornerOffsets = [
+        [0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0],
+        [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]
+      ];
+      const cellEdges = [
+        [0, 1], [2, 3], [4, 5], [6, 7],
+        [0, 2], [1, 3], [4, 6], [5, 7],
+        [0, 4], [1, 5], [2, 6], [3, 7]
+      ];
+
+      const cornerVal = new Float32Array(8);
+      const cornerPos = Array.from({ length: 8 }, () => [0, 0, 0]);
+      const gradTmp = new THREE.Vector3();
+
+      for (let iz = 0; iz < nz; iz++) {
+        for (let iy = 0; iy < ny; iy++) {
+          for (let ix = 0; ix < nx; ix++) {
+            let mask = 0;
+            for (let c = 0; c < 8; c++) {
+              const cx = ix + cornerOffsets[c][0];
+              const cy = iy + cornerOffsets[c][1];
+              const cz = iz + cornerOffsets[c][2];
+              const v = sdfGrid[cz * strideZ + cy * strideY + cx];
+              cornerVal[c] = v;
+              if (v < 0.0) mask |= (1 << c);
+            }
+            if (mask === 0 || mask === 255) continue;
+
+            for (let c = 0; c < 8; c++) {
+              cornerPos[c][0] = ox + (ix + cornerOffsets[c][0]) * cellSize;
+              cornerPos[c][1] = oy + (iy + cornerOffsets[c][1]) * cellSize;
+              cornerPos[c][2] = oz + (iz + cornerOffsets[c][2]) * cellSize;
+            }
+
+            let sx = 0.0, sy = 0.0, sz = 0.0, count = 0;
+            for (let e = 0; e < 12; e++) {
+              const c0 = cellEdges[e][0];
+              const c1 = cellEdges[e][1];
+              const v0 = cornerVal[c0];
+              const v1 = cornerVal[c1];
+              if ((v0 < 0.0) !== (v1 < 0.0)) {
+                const t = v0 / (v0 - v1);
+                sx += cornerPos[c0][0] + t * (cornerPos[c1][0] - cornerPos[c0][0]);
+                sy += cornerPos[c0][1] + t * (cornerPos[c1][1] - cornerPos[c0][1]);
+                sz += cornerPos[c0][2] + t * (cornerPos[c1][2] - cornerPos[c0][2]);
+                count++;
+              }
+            }
+
+            let px = sx / count;
+            let py = sy / count;
+            let pz = sz / count;
+
+            // Snap vertex onto exact SDF zero-isosurface via 3 Newton steps
+            for (let iter = 0; iter < 3; iter++) {
+              const d = bagSDF(px, py, pz);
+              bagSDFGrad(px, py, pz, gradTmp);
+              px -= d * gradTmp.x;
+              py -= d * gradTmp.y;
+              pz -= d * gradTmp.z;
+            }
+
+            const vIdx = positions.length / 3;
+            cellVertMap[iz * cellStrideZ + iy * cellStrideY + ix] = vIdx;
+            positions.push(px, py, pz);
+          }
+        }
+      }
+
+      const indices = [];
+      const pushQuad = (v0, v1, v2, v3, flip) => {
+        if (v0 < 0 || v1 < 0 || v2 < 0 || v3 < 0) return;
+        if (!flip) {
+          indices.push(v0, v1, v2, v0, v2, v3);
+        } else {
+          indices.push(v0, v2, v1, v0, v3, v2);
+        }
+      };
+
+      for (let iz = 1; iz < nz; iz++) {
+        for (let iy = 1; iy < ny; iy++) {
+          for (let ix = 1; ix < nx; ix++) {
+            const s0 = sdfGrid[iz * strideZ + iy * strideY + ix];
+
+            // X-edge (ix -> ix + 1)
+            const sx1 = sdfGrid[iz * strideZ + iy * strideY + (ix + 1)];
+            if ((s0 < 0.0) !== (sx1 < 0.0)) {
+              const c0 = cellVertMap[(iz - 1) * cellStrideZ + (iy - 1) * cellStrideY + ix];
+              const c1 = cellVertMap[(iz - 1) * cellStrideZ + iy * cellStrideY + ix];
+              const c2 = cellVertMap[iz * cellStrideZ + iy * cellStrideY + ix];
+              const c3 = cellVertMap[iz * cellStrideZ + (iy - 1) * cellStrideY + ix];
+              pushQuad(c0, c1, c2, c3, s0 > 0.0);
+            }
+
+            // Y-edge (iy -> iy + 1)
+            const sy1 = sdfGrid[iz * strideZ + (iy + 1) * strideY + ix];
+            if ((s0 < 0.0) !== (sy1 < 0.0)) {
+              const c0 = cellVertMap[(iz - 1) * cellStrideZ + iy * cellStrideY + (ix - 1)];
+              const c1 = cellVertMap[iz * cellStrideZ + iy * cellStrideY + (ix - 1)];
+              const c2 = cellVertMap[iz * cellStrideZ + iy * cellStrideY + ix];
+              const c3 = cellVertMap[(iz - 1) * cellStrideZ + iy * cellStrideY + ix];
+              pushQuad(c0, c1, c2, c3, s0 > 0.0);
+            }
+
+            // Z-edge (iz -> iz + 1)
+            const sz1 = sdfGrid[(iz + 1) * strideZ + iy * strideY + ix];
+            if ((s0 < 0.0) !== (sz1 < 0.0)) {
+              const c0 = cellVertMap[iz * cellStrideZ + (iy - 1) * cellStrideY + (ix - 1)];
+              const c1 = cellVertMap[iz * cellStrideZ + (iy - 1) * cellStrideY + ix];
+              const c2 = cellVertMap[iz * cellStrideZ + iy * cellStrideY + ix];
+              const c3 = cellVertMap[iz * cellStrideZ + iy * cellStrideY + (ix - 1)];
+              pushQuad(c0, c1, c2, c3, s0 > 0.0);
+            }
+          }
+        }
+      }
+
+      const vCount = positions.length / 3;
+      const normals = new Float32Array(positions.length);
+      for (let i = 0; i < vCount; i++) {
+        const px = positions[i * 3];
+        const py = positions[i * 3 + 1];
+        const pz = positions[i * 3 + 2];
+        bagSDFGrad(px, py, pz, gradTmp);
+        normals[i * 3] = gradTmp.x;
+        normals[i * 3 + 1] = gradTmp.y;
+        normals[i * 3 + 2] = gradTmp.z;
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+      geo.setIndex(indices);
+      return geo;
+    }
+
+    // ============================================================================
+    // 5. SOFT-BODY LATTICE PHYSICS (MÜLLER 2016 QUATERNION SHAPE MATCHING)
+    // ============================================================================
+    const LATTICE_SPACING = 0.155;
+    const SWIVEL_ANCHOR = new THREE.Vector3(0, 1.50, 0);
+    const BAG_REST_OFFSET_Y = 0.02;
+    const MAX_NODE_DISP = 0.32;
+    const GRAVITY = 9.0;
+
+    // Build ~200 lattice nodes inside the bag
+    const restNodes = [];
+    {
+      const nx = Math.ceil(0.45 / LATTICE_SPACING);
+      const ny = Math.ceil(0.82 / LATTICE_SPACING);
+      for (let iy = -ny; iy <= ny; iy++) {
+        const y = iy * LATTICE_SPACING;
+        for (let iz = -nx; iz <= nx; iz++) {
+          const z = iz * LATTICE_SPACING;
+          for (let ix = -nx; ix <= nx; ix++) {
+            const x = ix * LATTICE_SPACING;
+            if (bagSDF(x, y, z) <= 0.002) {
+              restNodes.push(new THREE.Vector3(x, y, z));
+            }
+          }
+        }
+      }
+    }
+
+    const NODE_COUNT = restNodes.length; // 210 nodes
+    const nodePos = restNodes.map((r) => new THREE.Vector3(r.x, r.y + BAG_REST_OFFSET_Y, r.z));
+    const nodeVel = restNodes.map(() => new THREE.Vector3());
+    const nodeForce = restNodes.map(() => new THREE.Vector3());
+    const nodeResidual = restNodes.map(() => new THREE.Vector3());
+
+    // Rest center of mass c0
+    const com0 = new THREE.Vector3();
+    for (let i = 0; i < NODE_COUNT; i++) com0.add(restNodes[i]);
+    com0.multiplyScalar(1.0 / NODE_COUNT);
+
+    // Current center of mass c and warm-started Müller 2016 quaternion
+    const com = new THREE.Vector3(com0.x, com0.y + BAG_REST_OFFSET_Y, com0.z);
+    const shapeQuat = new THREE.Quaternion();
+    const shapeRotMat4 = new THREE.Matrix4();
+    const shapeRotMat3 = new THREE.Matrix3();
+    const shapeRotInvMat3 = new THREE.Matrix3();
+
+    // Structural + shear neighbour springs (within 1.82 * spacing)
+    const springs = [];
+    const maxSpringDist = LATTICE_SPACING * 1.82;
+    for (let i = 0; i < NODE_COUNT; i++) {
+      for (let j = i + 1; j < NODE_COUNT; j++) {
+        const d = restNodes[i].distanceTo(restNodes[j]);
+        if (d <= maxSpringDist) {
+          springs.push({
+            i,
+            j,
+            restDiff: new THREE.Vector3().subVectors(restNodes[j], restNodes[i])
+          });
+        }
+      }
+    }
+
+    // Top-layer tension-only rope springs from the swivel anchor
+    const ropeSprings = [];
+    for (let i = 0; i < NODE_COUNT; i++) {
+      if (restNodes[i].y >= 0.58) {
+        const restWorld = new THREE.Vector3(restNodes[i].x, restNodes[i].y + BAG_REST_OFFSET_Y, restNodes[i].z);
+        const restLen = restWorld.distanceTo(SWIVEL_ANCHOR);
+        ropeSprings.push({
+          i,
+          restLen
+        });
+      }
+    }
+
+    // Müller 2016 Quaternion Extraction (warm-started)
+    const _colR0 = new THREE.Vector3();
+    const _colR1 = new THREE.Vector3();
+    const _colR2 = new THREE.Vector3();
+    const _colA0 = new THREE.Vector3();
+    const _colA1 = new THREE.Vector3();
+    const _colA2 = new THREE.Vector3();
+    const _omega = new THREE.Vector3();
+    const _crossTmp = new THREE.Vector3();
+    const _deltaQ = new THREE.Quaternion();
+
+    function extractRotationMueller2016(A00, A01, A02, A10, A11, A12, A20, A21, A22, q) {
+      _colA0.set(A00, A10, A20);
+      _colA1.set(A01, A11, A21);
+      _colA2.set(A02, A12, A22);
+
+      for (let iter = 0; iter < 7; iter++) {
+        shapeRotMat4.makeRotationFromQuaternion(q);
+        const e = shapeRotMat4.elements;
+        _colR0.set(e[0], e[1], e[2]);
+        _colR1.set(e[4], e[5], e[6]);
+        _colR2.set(e[8], e[9], e[10]);
+
+        _omega.set(0, 0, 0);
+        _crossTmp.crossVectors(_colR0, _colA0);
+        _omega.add(_crossTmp);
+        _crossTmp.crossVectors(_colR1, _colA1);
+        _omega.add(_crossTmp);
+        _crossTmp.crossVectors(_colR2, _colA2);
+        _omega.add(_crossTmp);
+
+        const dotSum = Math.abs(_colR0.dot(_colA0) + _colR1.dot(_colA1) + _colR2.dot(_colA2)) + 1e-6;
+        _omega.multiplyScalar(1.0 / dotSum);
+
+        const wLen = _omega.length();
+        if (wLen < 1e-6) break;
+        _deltaQ.setFromAxisAngle(_omega.multiplyScalar(1.0 / wLen), wLen);
+        q.premultiply(_deltaQ);
+        q.normalize();
+      }
+
+      shapeRotMat4.makeRotationFromQuaternion(q);
+      shapeRotMat3.setFromMatrix4(shapeRotMat4);
+      shapeRotInvMat3.copy(shapeRotMat3).transpose();
+    }
+
+    //Grab interaction state
+    const grabState = {
+      active: false,
+      localBodyPt: new THREE.Vector3(),
+      targetWorldPt: new THREE.Vector3(),
+      grabDistance: 2.8
+    };
+
+    const _tmpV1 = new THREE.Vector3();
+    const _tmpV2 = new THREE.Vector3();
+    const _tmpV3 = new THREE.Vector3();
+
+    function stepPhysicsSubstep(dt) {
+      // 1. Center of mass c
+      com.set(0, 0, 0);
+      for (let i = 0; i < NODE_COUNT; i++) {
+        com.add(nodePos[i]);
+      }
+      com.multiplyScalar(1.0 / NODE_COUNT);
+
+      // 2. Covariance matrix A = sum (x_i - c)(r_i - c0)^T
+      let A00 = 0, A01 = 0, A02 = 0;
+      let A10 = 0, A11 = 0, A12 = 0;
+      let A20 = 0, A21 = 0, A22 = 0;
+
+      for (let i = 0; i < NODE_COUNT; i++) {
+        const px = nodePos[i].x - com.x;
+        const py = nodePos[i].y - com.y;
+        const pz = nodePos[i].z - com.z;
+        const qx = restNodes[i].x - com0.x;
+        const qy = restNodes[i].y - com0.y;
+        const qz = restNodes[i].z - com0.z;
+
+        A00 += px * qx; A01 += px * qy; A02 += px * qz;
+        A10 += py * qx; A11 += py * qy; A12 += py * qz;
+        A20 += pz * qx; A21 += pz * qy; A22 += pz * qz;
+      }
+
+      extractRotationMueller2016(A00, A01, A02, A10, A11, A12, A20, A21, A22, shapeQuat);
+
+      // Scale stiffness and damping from UI sliders
+      const firmNorm = state.firmness / 50.0; // 0.3 .. 2.0
+      const dampNorm = state.damping / 30.0;  // 0.16 .. 3.0
+
+      const kA = 210.0 * firmNorm;
+      const kSpring = 145.0 * firmNorm;
+      const kInternalDamp = 5.2 * dampNorm;
+      const airDrag = 0.65;
+
+      // Average rigid velocity for internal damping reference
+      const avgVel = _tmpV3.set(0, 0, 0);
+      for (let i = 0; i < NODE_COUNT; i++) avgVel.add(nodeVel[i]);
+      avgVel.multiplyScalar(1.0 / NODE_COUNT);
+
+      // 3. Clear & accumulate forces
+      for (let i = 0; i < NODE_COUNT; i++) {
+        const f = nodeForce[i];
+        f.set(0, -GRAVITY, 0);
+
+        // Shape matching goal g = R(r - c0) + c
+        _tmpV1.subVectors(restNodes[i], com0).applyMatrix3(shapeRotMat3).add(com);
+        f.x += (_tmpV1.x - nodePos[i].x) * kA;
+        f.y += (_tmpV1.y - nodePos[i].y) * kA;
+        f.z += (_tmpV1.z - nodePos[i].z) * kA;
+
+        // Internal wobble damping + subtle air drag
+        f.x -= (nodeVel[i].x - avgVel.x) * kInternalDamp + nodeVel[i].x * airDrag;
+        f.y -= (nodeVel[i].y - avgVel.y) * kInternalDamp + nodeVel[i].y * airDrag;
+        f.z -= (nodeVel[i].z - avgVel.z) * kInternalDamp + nodeVel[i].z * airDrag;
+      }
+
+      // 4. Neighbour springs
+      const springDamp = 1.6 * dampNorm;
+      for (let s = 0; s < springs.length; s++) {
+        const sp = springs[s];
+        const i = sp.i;
+        const j = sp.j;
+        // Rotated rest vector R * (r_j - r_i)
+        _tmpV1.copy(sp.restDiff).applyMatrix3(shapeRotMat3);
+        // Current difference x_j - x_i
+        _tmpV2.subVectors(nodePos[j], nodePos[i]);
+
+        const fx = (_tmpV2.x - _tmpV1.x) * kSpring + (nodeVel[j].x - nodeVel[i].x) * springDamp;
+        const fy = (_tmpV2.y - _tmpV1.y) * kSpring + (nodeVel[j].y - nodeVel[i].y) * springDamp;
+        const fz = (_tmpV2.z - _tmpV1.z) * kSpring + (nodeVel[j].z - nodeVel[i].z) * springDamp;
+
+        nodeForce[i].x += fx;
+        nodeForce[i].y += fy;
+        nodeForce[i].z += fz;
+        nodeForce[j].x -= fx;
+        nodeForce[j].y -= fy;
+        nodeForce[j].z -= fz;
+      }
+
+      // 5. Tension-only top rope springs to Swivel Anchor (no bungee bounce)
+      const kRope = 2200.0;
+      const cRope = 75.0;
+      for (let r = 0; r < ropeSprings.length; r++) {
+        const rp = ropeSprings[r];
+        const idx = rp.i;
+        _tmpV1.subVectors(SWIVEL_ANCHOR, nodePos[idx]);
+        const dist = _tmpV1.length();
+        if (dist > rp.restLen && dist > 1e-5) {
+          _tmpV1.multiplyScalar(1.0 / dist); // unit dir toward anchor
+          const stretch = dist - rp.restLen;
+          const velAlongRope = -nodeVel[idx].dot(_tmpV1); // speed moving away from anchor
+          const tension = Math.max(0.0, stretch * kRope + velAlongRope * cRope);
+          nodeForce[idx].addScaledVector(_tmpV1, tension);
+        }
+      }
+
+      // 6. User grab & swing force when dragging the bag
+      if (grabState.active) {
+        for (let i = 0; i < NODE_COUNT; i++) {
+          const d = restNodes[i].distanceTo(grabState.localBodyPt);
+          const w = Math.exp(-(d * d) / (2.0 * 0.36 * 0.36));
+          if (w > 0.01) {
+            _tmpV1.copy(restNodes[i]).sub(grabState.localBodyPt).applyMatrix3(shapeRotMat3).add(grabState.targetWorldPt);
+            nodeForce[i].x += (_tmpV1.x - nodePos[i].x) * 140.0 * w - nodeVel[i].x * 14.0 * w;
+            nodeForce[i].y += (_tmpV1.y - nodePos[i].y) * 140.0 * w - nodeVel[i].y * 14.0 * w;
+            nodeForce[i].z += (_tmpV1.z - nodePos[i].z) * 140.0 * w - nodeVel[i].z * 14.0 * w;
+          }
+        }
+      }
+
+      // 7. Semi-implicit Euler integration & MAXD (~0.32) residual clamping
+      for (let i = 0; i < NODE_COUNT; i++) {
+        nodeVel[i].addScaledVector(nodeForce[i], dt);
+        nodePos[i].addScaledVector(nodeVel[i], dt);
+
+        // Residual u_i = R^T (x_i - c) + c0 - r_i
+        _tmpV1.subVectors(nodePos[i], com).applyMatrix3(shapeRotInvMat3).add(com0).sub(restNodes[i]);
+        const rLen = _tmpV1.length();
+        if (rLen > MAX_NODE_DISP) {
+          _tmpV1.multiplyScalar(MAX_NODE_DISP / rLen);
+          // Reproject clamped position x_i = R(r_i + u_i - c0) + c
+          nodePos[i].copy(restNodes[i]).add(_tmpV1).sub(com0).applyMatrix3(shapeRotMat3).add(com);
+        }
+        nodeResidual[i].copy(_tmpV1);
+      }
+    }
+
+    function stepPhysicsFrame(dt) {
+      const clampedDt = Math.min(dt, 0.033);
+      const subDt = clampedDt / 10.0;
+      for (let s = 0; s < 10; s++) {
+        stepPhysicsSubstep(subDt);
+      }
+    }
+
+    // Run 150 pre-roll steps so the bag starts settled on its chain, then give a gentle opening swing
+    for (let pre = 0; pre < 150; pre++) {
+      stepPhysicsFrame(1 / 60);
+    }
+    for (let i = 0; i < NODE_COUNT; i++) {
+      const topFactor = Math.max(0.15, (0.95 - restNodes[i].y) / 1.75);
+      nodeVel[i].x += 0.42 * topFactor;
+      nodeVel[i].z += 0.14 * topFactor;
+    }
+
+    // ============================================================================
+    // 6. GPU FLOAT DATA TEXTURES FOR LATTICE DEFORMATION
+    // ============================================================================
+    const restTexData = new Float32Array(NODE_COUNT * 4);
+    for (let i = 0; i < NODE_COUNT; i++) {
+      restTexData[i * 4] = restNodes[i].x;
+      restTexData[i * 4 + 1] = restNodes[i].y;
+      restTexData[i * 4 + 2] = restNodes[i].z;
+      restTexData[i * 4 + 3] = 1.0;
+    }
+    const restDataTexture = new THREE.DataTexture(restTexData, NODE_COUNT, 1, THREE.RGBAFormat, THREE.FloatType);
+    restDataTexture.minFilter = THREE.NearestFilter;
+    restDataTexture.magFilter = THREE.NearestFilter;
+    restDataTexture.needsUpdate = true;
+
+    const residualTexData = new Float32Array(NODE_COUNT * 4);
+    const residualDataTexture = new THREE.DataTexture(residualTexData, NODE_COUNT, 1, THREE.RGBAFormat, THREE.FloatType);
+    residualDataTexture.minFilter = THREE.NearestFilter;
+    residualDataTexture.magFilter = THREE.NearestFilter;
+
+    function updateResidualTexture() {
+      for (let i = 0; i < NODE_COUNT; i++) {
+        residualTexData[i * 4] = nodeResidual[i].x;
+        residualTexData[i * 4 + 1] = nodeResidual[i].y;
+        residualTexData[i * 4 + 2] = nodeResidual[i].z;
+        residualTexData[i * 4 + 3] = 0.0;
+      }
+      residualDataTexture.needsUpdate = true;
+    }
+    updateResidualTexture();
+
+    // Shared GPU uniforms for vertex deformation
+    const deformUniforms = {
+      uRestTex: { value: restDataTexture },
+      uResidualTex: { value: residualDataTexture },
+      uRot: { value: shapeRotMat3 },
+      uCom: { value: com },
+      uCom0: { value: com0 },
+      uWrapMode: { value: state.wrap }
+    };
+
+    // Helper: evaluate deformed body point on CPU (for hardware straps, bubbles, and hit point)
+    function evaluateDeformedPointWorld(bodyPt, outWorld) {
+      const inv2Sigma2 = 1.0 / (2.0 * 0.108 * 0.108);
+      let sumW = 0.0;
+      let ux = 0.0, uy = 0.0, uz = 0.0;
+      for (let i = 0; i < NODE_COUNT; i++) {
+        const dx = bodyPt.x - restNodes[i].x;
+        const dy = bodyPt.y - restNodes[i].y;
+        const dz = bodyPt.z - restNodes[i].z;
+        const w = Math.exp(-(dx * dx + dy * dy + dz * dz) * inv2Sigma2);
+        sumW += w;
+        ux += w * nodeResidual[i].x;
+        uy += w * nodeResidual[i].y;
+        uz += w * nodeResidual[i].z;
+      }
+      const invW = 1.0 / (sumW || 1.0);
+      outWorld.set(
+        bodyPt.x + ux * invW - com0.x,
+        bodyPt.y + uy * invW - com0.y,
+        bodyPt.z + uz * invW - com0.z
+      );
+      outWorld.applyMatrix3(shapeRotMat3).add(com);
+      return outWorld;
+    }
+
+    // ============================================================================
+    // 7. THREE.JS SCENE, RENDERER, PMREM GYM ENVIRONMENT & LIGHTING
+    // ============================================================================
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0a09);
+    scene.fog = new THREE.FogExp2(0x0b0a09, 0.12);
+
+    const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 35);
+
+    // Build custom PMREM "gym" environment (dark room, one warm overhead lamp + soft bounce)
+    function createGymEnvironment(rendererInstance) {
+      const pmrem = new THREE.PMREMGenerator(rendererInstance);
+      pmrem.compileEquirectangularShader();
+      const envScene = new THREE.Scene();
+      envScene.background = new THREE.Color(0x090807);
+
+      // Warm overhead gym lamp disc
+      const lampGeo = new THREE.CircleGeometry(1.6, 32);
+      const lampMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(9.5, 7.6, 5.2), side: THREE.DoubleSide });
+      const lampMesh = new THREE.Mesh(lampGeo, lampMat);
+      lampMesh.position.set(0, 5.0, 0.4);
+      lampMesh.rotation.x = Math.PI / 2;
+      envScene.add(lampMesh);
+
+      // Soft warm halo around overhead lamp
+      const haloGeo = new THREE.RingGeometry(1.6, 4.2, 32);
+      const haloMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.15, 0.75), side: THREE.DoubleSide });
+      const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+      haloMesh.position.set(0, 5.02, 0.4);
+      haloMesh.rotation.x = Math.PI / 2;
+      envScene.add(haloMesh);
+
+      // Subtle side studio rim strips so the glossy gummy edges catch crisp highlights
+      const rimMat1 = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 1.35, 1.3), side: THREE.DoubleSide });
+      const rim1 = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 5.5), rimMat1);
+      rim1.position.set(-4.8, 0.8, 1.5);
+      rim1.lookAt(0, 0, 0);
+      envScene.add(rim1);
+
+      const rimMat2 = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.1, 0.95, 0.8), side: THREE.DoubleSide });
+      const rim2 = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 5.0), rimMat2);
+      rim2.position.set(4.8, 1.2, -1.2);
+      rim2.lookAt(0, 0, 0);
+      envScene.add(rim2);
+
+      // Warm floor bounce
+      const bounceFloor = new THREE.Mesh(
+        new THREE.CircleGeometry(5.5, 32),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(0.28, 0.21, 0.15), side: THREE.DoubleSide })
+      );
+      bounceFloor.position.set(0, -4.0, 0);
+      bounceFloor.rotation.x = -Math.PI / 2;
+      envScene.add(bounceFloor);
+
+      const envRT = pmrem.fromScene(envScene, 0.035);
+      pmrem.dispose();
+      return envRT.texture;
+    }
+
+    scene.environment = createGymEnvironment(renderer);
+
+    // Warm overhead directional lamp + subtle ambient fill
+    const LIGHT_POS = new THREE.Vector3(0.18, 4.6, 0.48);
+    const dirLight = new THREE.DirectionalLight(0xffe4be, 2.8);
+    dirLight.position.copy(LIGHT_POS);
+    scene.add(dirLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffeedd, 0.85);
+    rimLight.position.set(-2.5, 1.6, -2.2);
+    scene.add(rimLight);
+
+    const ambLight = new THREE.AmbientLight(0x241e1a, 0.65);
+    scene.add(ambLight);
+
+    // ============================================================================
+    // 8. GYM FLOOR, ADDITIVE LIGHT POOL, PLANAR SHADOW & DUST MOTES
+    // ============================================================================
+    const FLOOR_Y = -1.32;
+
+    function createGymFloorTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#141210';
+      ctx.fillRect(0, 0, 512, 512);
+
+      // Subtle rubber mat grain
+      for (let i = 0; i < 9000; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const v = 16 + Math.floor(Math.random() * 14);
+        ctx.fillStyle = `rgb(${v},${v - 1},${v - 2})`;
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      // Rubber tile seams
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(1.5, 1.5, 509, 509);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(4, 4, 504, 504);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(14, 14);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    const floorMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(28, 28),
+      new THREE.MeshStandardMaterial({
+        map: createGymFloorTexture(),
+        roughness: 0.84,
+        metalness: 0.06
+      })
+    );
+    floorMesh.rotation.x = -Math.PI / 2;
+    floorMesh.position.y = FLOOR_Y;
+    scene.add(floorMesh);
+
+    // Additive warm pool of light on the floor
+    function createLightPoolTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(128, 128, 4, 128, 128, 128);
+      grad.addColorStop(0.0, 'rgba(255, 214, 158, 0.34)');
+      grad.addColorStop(0.35, 'rgba(235, 178, 112, 0.16)');
+      grad.addColorStop(0.7, 'rgba(180, 125, 72, 0.04)');
+      grad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 256, 256);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    }
+
+    const lightPoolMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(5.8, 5.8),
+      new THREE.MeshBasicMaterial({
+        map: createLightPoolTexture(),
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    lightPoolMesh.rotation.x = -Math.PI / 2;
+    lightPoolMesh.position.set(0, FLOOR_Y + 0.002, 0);
+    scene.add(lightPoolMesh);
+
+    // Planar projected shadow on the floor, tinted by the flavour (multiply blend + stencil, hidden from transmission pass)
+    function createPlanarShadowMaterial() {
+      return new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.CustomBlending,
+        blendSrc: THREE.DstColorFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor,
+        blendEquation: THREE.AddEquation,
+        stencilWrite: true,
+        stencilRef: 0,
+        stencilFunc: THREE.EqualStencilFunc,
+        stencilZPass: THREE.IncrementStencilOp,
+        uniforms: {
+          uTint: { value: new THREE.Color(FLAVOURS.cherry.shadowTint) },
+          uCoreTint: { value: new THREE.Color(FLAVOURS.cherry.color) }
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv * 2.0 - 1.0;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          varying vec2 vUv;
+          uniform vec3 uTint;
+          uniform vec3 uCoreTint;
+          void main() {
+            // Rounded capsule-like shadow footprint
+            vec2 p = vUv;
+            p.x *= 1.18;
+            float r = length(p);
+            if (r > 1.0) discard;
+            float soft = smoothstep(1.0, 0.22, r);
+            // Subtle gummy caustic tint in the center of the shadow
+            float caustic = smoothstep(0.68, 0.0, r) * 0.35;
+            vec3 col = mix(vec3(1.0), mix(uTint * 0.55, uCoreTint * 0.48, caustic), soft * 0.86);
+            gl_FragColor = vec4(col, soft * 0.86);
+          }
+        `
+      });
+    }
+
+    const planarShadowMat = createPlanarShadowMaterial();
+    const planarShadowMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.45), planarShadowMat);
+    planarShadowMesh.rotation.x = -Math.PI / 2;
+    planarShadowMesh.position.set(0, FLOOR_Y + 0.004, 0);
+    planarShadowMesh.renderOrder = 1;
+    scene.add(planarShadowMesh);
+
+    // ~90 Dust motes drifting in the overhead light
+    const DUST_COUNT = 90;
+    const dustPositions = new Float32Array(DUST_COUNT * 3);
+    const dustPhases = new Float32Array(DUST_COUNT * 3);
+    for (let i = 0; i < DUST_COUNT; i++) {
+      const r = 0.2 + Math.random() * 1.95;
+      const a = Math.random() * Math.PI * 2;
+      dustPositions[i * 3] = Math.cos(a) * r;
+      dustPositions[i * 3 + 1] = FLOOR_Y + 0.25 + Math.random() * 3.1;
+      dustPositions[i * 3 + 2] = Math.sin(a) * r;
+
+      dustPhases[i * 3] = Math.random() * Math.PI * 2;
+      dustPhases[i * 3 + 1] = 0.25 + Math.random() * 0.55;
+      dustPhases[i * 3 + 2] = 0.04 + Math.random() * 0.08;
+    }
+    const dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+    const dustMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      vertexShader: `
+        varying float vAlpha;
+        void main() {
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mvPosition;
+          gl_PointSize = clamp(11.0 / -mvPosition.z, 1.5, 4.5);
+          float radial = length(position.xz);
+          vAlpha = smoothstep(2.2, 0.3, radial) * smoothstep(-1.2, -0.4, position.y);
+        }
+      `,
+      fragmentShader: `
+        varying float vAlpha;
+        void main() {
+          float d = length(gl_PointCoord - 0.5) * 2.0;
+          if (d > 1.0) discard;
+          float a = (1.0 - d * d) * 0.38 * vAlpha;
+          gl_FragColor = vec4(1.0, 0.9, 0.72, a);
+        }
+      `
+    });
+    const dustPoints = new THREE.Points(dustGeo, dustMat);
+    scene.add(dustPoints);
+
+    // ============================================================================
+    // 9. CLASSIC LABEL CANVAS TEXTURE & GPU SHADER INJECTION
+    // ============================================================================
+    function createClassicLabelTexture() {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+
+      // Warm woven cream canvas patch background
+      ctx.fillStyle = '#f4EFE6';
+      ctx.fillRect(0, 0, c.width, c.height);
+
+      // Subtle woven fabric grain
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.03)';
+      for (let y = 0; y < c.height; y += 4) {
+        ctx.fillRect(0, y, c.width, 1);
+      }
+      for (let x = 0; x < c.width; x += 4) {
+        ctx.fillRect(x, 0, 1, c.height);
+      }
+
+      // Outer dark trim & Inner Crimson Border
+      ctx.strokeStyle = '#1a1615';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(18, 18, c.width - 36, c.height - 36);
+
+      ctx.strokeStyle = '#d61f2c';
+      ctx.lineWidth = 14;
+      ctx.strokeRect(42, 42, c.width - 84, c.height - 84);
+
+      ctx.strokeStyle = '#d61f2c';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(62, 62, c.width - 124, c.height - 124);
+
+      // Top micro line
+      ctx.fillStyle = '#5c534c';
+      ctx.font = '600 26px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('CONFECTIONERY ATHLETIC DEPT · EST. NO. 10', c.width / 2, 122);
+
+      // Big "JELLY" headline
+      ctx.fillStyle = '#141110';
+      ctx.font = '700 196px "Bebas Neue", Impact, sans-serif';
+      ctx.fillText('JELLY', c.width / 2, 314);
+
+      // Divider rule
+      ctx.fillStyle = '#d61f2c';
+      ctx.fillRect(190, 348, c.width - 380, 5);
+
+      // Subtitle "HEAVY BAG · 100% GUMMY"
+      ctx.fillStyle = '#1f1a18';
+      ctx.font = '700 34px "JetBrains Mono", monospace';
+      ctx.fillText('HEAVY BAG · 100% GUMMY', c.width / 2, 408);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      return tex;
+    }
+
+    const classicLabelTex = createClassicLabelTexture();
+
+    // Vertex deformation chunk (Normalized Gaussian blending + Analytic Jacobian normals)
+    const VERTEX_DEFORM_PREAMBLE = `
+      uniform sampler2D uRestTex;
+      uniform sampler2D uResidualTex;
+      uniform mat3 uRot;
+      uniform vec3 uCom;
+      uniform vec3 uCom0;
+      varying vec3 vRestPos;
+      varying vec3 vRestNormal;
+
+      void computeJellyDeform(in vec3 restP, in vec3 restN, out vec3 worldPos, out vec3 worldNorm) {
+        const int N = ${NODE_COUNT};
+        const float inv2Sigma2 = 1.0 / (2.0 * 0.108 * 0.108);
+        const float invSigma2 = 1.0 / (0.108 * 0.108);
+
+        float sumW = 0.0;
+        vec3 sumU = vec3(0.0);
+        vec3 sumD = vec3(0.0);
+        mat3 sumUD = mat3(0.0);
+
+        for (int i = 0; i < N; i++) {
+          vec3 r = texelFetch(uRestTex, ivec2(i, 0), 0).xyz;
+          vec3 u = texelFetch(uResidualTex, ivec2(i, 0), 0).xyz;
+          vec3 d = restP - r;
+          float w = exp(-dot(d, d) * inv2Sigma2);
+          sumW += w;
+          sumU += w * u;
+          sumD += w * d;
+          sumUD += w * outerProduct(u, d);
+        }
+
+        float invW = 1.0 / max(sumW, 1e-6);
+        vec3 disp = sumU * invW;
+        vec3 meanD = sumD * invW;
+
+        // Analytic Jacobian of normalized Gaussian blend: J = I - invSigma2 * (sumUD/sumW - disp * meanD^T)
+        mat3 dDisp = -invSigma2 * (sumUD * invW - outerProduct(disp, meanD));
+        mat3 J = mat3(1.0) + dDisp;
+
+        vec3 nBody = normalize(transpose(inverse(J)) * restN);
+        worldPos = uRot * (restP + disp - uCom0) + uCom;
+        worldNorm = normalize(uRot * nBody);
+      }
+    `;
+
+    // Build Surface Nets Bag Mesh
+    const bagGeo = buildSurfaceNetsBagGeometry(0.017);
+
+    // 1. Translucent Jelly Material
+    const jellyMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(FLAVOURS.cherry.color),
+      transmission: 1.0,
+      thickness: 0.9,
+      ior: 1.36,
+      roughness: 0.075,
+      metalness: 0.0,
+      attenuationColor: new THREE.Color(FLAVOURS.cherry.attenuation),
+      attenuationDistance: 0.52,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.06,
+      sheen: 0.38,
+      sheenRoughness: 0.32,
+      sheenColor: new THREE.Color(FLAVOURS.cherry.sheen),
+      emissive: new THREE.Color(FLAVOURS.cherry.emissive),
+      emissiveIntensity: 0.16,
+      side: THREE.DoubleSide
+    });
+
+    jellyMat.onBeforeCompile = (shader) => {
+      shader.uniforms.uRestTex = deformUniforms.uRestTex;
+      shader.uniforms.uResidualTex = deformUniforms.uResidualTex;
+      shader.uniforms.uRot = deformUniforms.uRot;
+      shader.uniforms.uCom = deformUniforms.uCom;
+      shader.uniforms.uCom0 = deformUniforms.uCom0;
+
+      shader.vertexShader = VERTEX_DEFORM_PREAMBLE + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <beginnormal_vertex>',
+        `
+        #include <beginnormal_vertex>
+        vRestPos = position;
+        vRestNormal = objectNormal;
+        vec3 jWorldPos;
+        vec3 jWorldNorm;
+        computeJellyDeform(position, objectNormal, jWorldPos, jWorldNorm);
+        objectNormal = jWorldNorm;
+        `
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `
+        vec3 transformed = jWorldPos;
+        `
+      );
+    };
+
+    const jellyBagMesh = new THREE.Mesh(bagGeo, jellyMat);
+    jellyBagMesh.frustumCulled = false;
+
+    // Hide planar shadow during the internal transmission pass so it doesn't refract inside the bag
+    jellyBagMesh.onBeforeRender = () => {
+      planarShadowMesh.visible = true;
+    };
+    scene.add(jellyBagMesh);
+
+    // 2. Overlay Shell (same mesh pushed out along the normal, masked procedurally in fragment shader with fwidth AA & alphaToCoverage)
+    const overlayMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: 0.42,
+      metalness: 0.04,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.32,
+      alphaToCoverage: true,
+      transparent: false,
+      side: THREE.FrontSide
+    });
+
+    overlayMat.onBeforeCompile = (shader) => {
+      shader.uniforms.uRestTex = deformUniforms.uRestTex;
+      shader.uniforms.uResidualTex = deformUniforms.uResidualTex;
+      shader.uniforms.uRot = deformUniforms.uRot;
+      shader.uniforms.uCom = deformUniforms.uCom;
+      shader.uniforms.uCom0 = deformUniforms.uCom0;
+      shader.uniforms.uWrapMode = deformUniforms.uWrapMode;
+      shader.uniforms.uLabelTex = { value: classicLabelTex };
+
+      shader.vertexShader = VERTEX_DEFORM_PREAMBLE + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <beginnormal_vertex>',
+        `
+        #include <beginnormal_vertex>
+        vRestPos = position;
+        vRestNormal = objectNormal;
+        vec3 jWorldPos;
+        vec3 jWorldNorm;
+        computeJellyDeform(position + objectNormal * 0.0026, objectNormal, jWorldPos, jWorldNorm);
+        objectNormal = jWorldNorm;
+        `
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `
+        vec3 transformed = jWorldPos;
+        `
+      );
+
+      shader.fragmentShader = `
+        uniform int uWrapMode;
+        uniform sampler2D uLabelTex;
+        varying vec3 vRestPos;
+        varying vec3 vRestNormal;
+
+        float aaStep(float edge, float x) {
+          float w = max(fwidth(x), 0.0015);
+          return smoothstep(edge - w, edge + w, x);
+        }
+      ` + shader.fragmentShader;
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <color_fragment>',
+        `
+        #include <color_fragment>
+
+        float y = vRestPos.y;
+        float theta = atan(vRestPos.x, vRestPos.z);
+
+        // Top and bottom dark leather caps on EVERY wrap
+        float topCapLine = 0.51 + 0.006 * cos(theta * 4.0);
+        float botCapLine = -0.56;
+        float inTopCap = aaStep(topCapLine, y);
+        float inBotCap = 1.0 - aaStep(botCapLine, y);
+        float capMask = clamp(inTopCap + inBotCap, 0.0, 1.0);
+
+        // Leather base color with subtle grain
+        float leatherNoise = fract(sin(dot(vRestPos.xy * 160.0, vec2(12.9898, 78.233))) * 43758.5453);
+        vec3 leatherCol = vec3(0.055, 0.048, 0.045) + (leatherNoise - 0.5) * 0.015;
+
+        // Stitch lines near top and bottom cap borders
+        float topStitchDist = abs(y - (topCapLine + 0.022));
+        float botStitchDist = abs(y - (botCapLine - 0.022));
+        float stitchDash = aaStep(0.15, sin(theta * 36.0));
+        float topStitch = (1.0 - aaStep(0.0042, topStitchDist)) * stitchDash;
+        float botStitch = (1.0 - aaStep(0.0042, botStitchDist)) * stitchDash;
+        float stitchMask = clamp(topStitch + botStitch, 0.0, 1.0);
+        vec3 capFinalCol = mix(leatherCol, vec3(0.84, 0.78, 0.68), stitchMask * 0.88);
+
+        float wrapMask = 0.0;
+        vec3 wrapCol = vec3(1.0);
+
+        if (uWrapMode == 0) {
+          // Classic: front white label panel with canvas texture
+          float halfAng = 0.58;
+          float halfY = 0.21;
+          float cy = -0.02;
+          float boxX = abs(theta) - halfAng;
+          float boxY = abs(y - cy) - halfY;
+          float boxDist = length(max(vec2(boxX, boxY), 0.0)) + min(max(boxX, boxY), 0.0);
+          wrapMask = 1.0 - aaStep(0.0, boxDist);
+          if (wrapMask > 0.001) {
+            vec2 labelUv = vec2(theta / (2.0 * halfAng) + 0.5, (y - cy) / (2.0 * halfY) + 0.5);
+            wrapCol = texture2D(uLabelTex, clamp(labelUv, 0.0, 1.0)).rgb;
+          }
+        } else if (uWrapMode == 1) {
+          // Stripes: crisp dual racing stripes + horizontal band
+          float middleZone = (1.0 - inTopCap) * (1.0 - inBotCap);
+          float s1 = 1.0 - aaStep(0.085, abs( abs(theta) - 0.24 ));
+          float s2 = 1.0 - aaStep(0.028, abs( abs(theta) - 0.365 ));
+          float hBand = 1.0 - aaStep(0.055, abs(y + 0.02));
+          wrapMask = clamp(max(max(s1, s2), hBand) * middleZone, 0.0, 1.0);
+          vec3 stripeWhite = vec3(0.95, 0.93, 0.88);
+          vec3 stripeGold = vec3(0.96, 0.75, 0.22);
+          wrapCol = mix(stripeWhite, stripeGold, clamp(s2 + hBand * 0.5, 0.0, 1.0));
+        } else if (uWrapMode == 2) {
+          // Flames: hot-rod flames licking up from the bottom leather cap
+          float middleZone = (1.0 - inTopCap) * (1.0 - inBotCap);
+          float u = theta * 5.0;
+          float wave = sin(u) * 0.14 + sin(u * 2.0 + 1.1) * 0.075 + cos(u * 3.0 - 0.6) * 0.045;
+          float pinch = pow(abs(sin(u * 0.5)), 0.75) * 0.12;
+          float flameTop = -0.14 + wave + pinch;
+          float fMask = (1.0 - aaStep(flameTop, y)) * middleZone;
+          wrapMask = fMask;
+          float hNorm = clamp((y - botCapLine) / max(0.01, (flameTop - botCapLine)), 0.0, 1.0);
+          vec3 cYellow = vec3(1.0, 0.88, 0.18);
+          vec3 cOrange = vec3(1.0, 0.42, 0.06);
+          vec3 cRed = vec3(0.86, 0.08, 0.08);
+          wrapCol = mix(cYellow, cOrange, smoothstep(0.0, 0.52, hNorm));
+          wrapCol = mix(wrapCol, cRed, smoothstep(0.48, 0.95, hNorm));
+        }
+
+        float totalAlpha = clamp(max(capMask, wrapMask), 0.0, 1.0);
+        if (totalAlpha < 0.02) discard;
+
+        diffuseColor.rgb = mix(wrapCol, capFinalCol, capMask);
+        diffuseColor.a = totalAlpha;
+        `
+      );
+    };
+
+    const overlayMesh = new THREE.Mesh(bagGeo, overlayMat);
+    overlayMesh.frustumCulled = false;
+    scene.add(overlayMesh);
+
+    // ============================================================================
+    // 10. 120 SUSPENDED AIR BUBBLES INSIDE THE JELLY (INSTANCED SPHERES)
+    // ============================================================================
+    const BUBBLE_COUNT = 120;
+    const bubbleRestPoints = [];
+    const bubbleScales = new Float32Array(BUBBLE_COUNT);
+    {
+      let b = 0;
+      while (b < BUBBLE_COUNT) {
+        const rx = (Math.random() * 2 - 1) * 0.36;
+        const ry = (Math.random() * 2 - 1) * 0.48;
+        const rz = (Math.random() * 2 - 1) * 0.36;
+        if (bagSDF(rx, ry, rz) < -0.055) {
+          bubbleRestPoints.push(new THREE.Vector3(rx, ry, rz));
+          // Mix of tiny micro-bubbles and larger glistening candy bubbles
+          bubbleScales[b] = Math.random() < 0.82
+            ? 0.0055 + Math.random() * 0.0085
+            : 0.014 + Math.random() * 0.009;
+          b++;
+        }
+      }
+    }
+
+    const bubbleGeo = new THREE.SphereGeometry(1.0, 10, 8);
+    const bubbleMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: 0.05,
+      metalness: 0.1,
+      transmission: 0.65,
+      ior: 1.1,
+      emissive: new THREE.Color(FLAVOURS.cherry.sheen),
+      emissiveIntensity: 0.35,
+      transparent: true,
+      opacity: 0.72
+    });
+    const bubblesInstanced = new THREE.InstancedMesh(bubbleGeo, bubbleMat, BUBBLE_COUNT);
+    bubblesInstanced.frustumCulled = false;
+    scene.add(bubblesInstanced);
+
+    const _bubbleDummy = new THREE.Object3D();
+    const _bubbleWorldPos = new THREE.Vector3();
+
+    function updateBubbles() {
+      for (let i = 0; i < BUBBLE_COUNT; i++) {
+        evaluateDeformedPointWorld(bubbleRestPoints[i], _bubbleWorldPos);
+        _bubbleDummy.position.copy(_bubbleWorldPos);
+        _bubbleDummy.scale.setScalar(bubbleScales[i]);
+        _bubbleDummy.updateMatrix();
+        bubblesInstanced.setMatrixAt(i, _bubbleDummy.matrix);
+      }
+      bubblesInstanced.instanceMatrix.needsUpdate = true;
+    }
+
+    // ============================================================================
+    // 11. STEEL CHAIN (~34 ALTERNATING TORUS LINKS), SWIVEL, RING & 4 LEATHER STRAPS
+    // ============================================================================
+    const steelMat = new THREE.MeshStandardMaterial({
+      color: 0xd4d7dc,
+      metalness: 0.92,
+      roughness: 0.22
+    });
+
+    const strapLeatherMat = new THREE.MeshStandardMaterial({
+      color: 0x141211,
+      roughness: 0.48,
+      metalness: 0.08
+    });
+
+    // ~34 Alternating Torus Links from Ceiling to Swivel
+    const CHAIN_LINKS = 34;
+    const CEILING_ANCHOR = new THREE.Vector3(0, 3.05, 0);
+    const linkGeo = new THREE.TorusGeometry(0.032, 0.0085, 10, 20);
+    const chainInstanced = new THREE.InstancedMesh(linkGeo, steelMat, CHAIN_LINKS);
+    chainInstanced.frustumCulled = false;
+    scene.add(chainInstanced);
+
+    // Swivel & Ring Group
+    const swivelGroup = new THREE.Group();
+    const swivelBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.065, 16), steelMat);
+    swivelBarrel.position.y = 0.055;
+    swivelGroup.add(swivelBarrel);
+
+    const swivelCap = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.007, 10, 18), steelMat);
+    swivelCap.position.y = 0.095;
+    swivelGroup.add(swivelCap);
+
+    const masterRing = new THREE.Mesh(new THREE.TorusGeometry(0.068, 0.012, 12, 28), steelMat);
+    masterRing.position.y = 0.0;
+    swivelGroup.add(masterRing);
+    scene.add(swivelGroup);
+
+    // Four dark leather straps (boxes re-stretched every frame between the ring and the deformed attachment points)
+    const strapAttachBodyPts = [
+      new THREE.Vector3(0.21, 0.73, 0.21),
+      new THREE.Vector3(-0.21, 0.73, 0.21),
+      new THREE.Vector3(-0.21, 0.73, -0.21),
+      new THREE.Vector3(0.21, 0.73, -0.21)
+    ];
+
+    const strapMeshes = [];
+    const rivetMeshes = [];
+    const strapBaseGeo = new THREE.BoxGeometry(0.036, 1.0, 0.011);
+    const rivetGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.01, 12);
+
+    for (let i = 0; i < 4; i++) {
+      const m = new THREE.Mesh(strapBaseGeo, strapLeatherMat);
+      m.frustumCulled = false;
+      scene.add(m);
+      strapMeshes.push(m);
+
+      const rv = new THREE.Mesh(rivetGeo, steelMat);
+      rv.frustumCulled = false;
+      scene.add(rv);
+      rivetMeshes.push(rv);
+    }
+
+    const _attachWorldPts = [
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+      new THREE.Vector3()
+    ];
+    const _ringWorldPos = new THREE.Vector3();
+    const _strapMid = new THREE.Vector3();
+    const _strapDir = new THREE.Vector3();
+    const _strapUp = new THREE.Vector3(0, 1, 0);
+    const _strapQuat = new THREE.Quaternion();
+    const _chainDir = new THREE.Vector3();
+    const _chainQuat = new THREE.Quaternion();
+    const _linkTwist = new THREE.Quaternion();
+
+    function updateHardwareAndShadow() {
+      // 1. Evaluate deformed world positions of the 4 top-cap strap attachments
+      const avgTop = _tmpV1.set(0, 0, 0);
+      for (let i = 0; i < 4; i++) {
+        evaluateDeformedPointWorld(strapAttachBodyPts[i], _attachWorldPts[i]);
+        avgTop.add(_attachWorldPts[i]);
+      }
+      avgTop.multiplyScalar(0.25);
+
+      // Position the ring & swivel along the tension line from SWIVEL_ANCHOR toward avgTop
+      _ringWorldPos.copy(SWIVEL_ANCHOR).lerp(avgTop, 0.14);
+      swivelGroup.position.copy(_ringWorldPos);
+
+      // Orient swivel toward the bag top
+      _strapDir.subVectors(avgTop, CEILING_ANCHOR).normalize();
+      _strapQuat.setFromUnitVectors(_strapUp, _strapDir.clone().negate());
+      swivelGroup.quaternion.copy(_strapQuat);
+
+      // 2. Stretch & orient the 4 leather straps between the ring and the 4 deformed attachment points
+      for (let i = 0; i < 4; i++) {
+        const attachPt = _attachWorldPts[i];
+        // Slight offset on the ring perimeter so straps meet the bottom of the torus ring cleanly
+        const ringPt = _tmpV2.copy(_ringWorldPos).addScaledVector(
+          _tmpV3.subVectors(attachPt, avgTop).setY(0).normalize(),
+          0.032
+        );
+        ringPt.y -= 0.048;
+
+        const len = ringPt.distanceTo(attachPt);
+        _strapMid.addVectors(ringPt, attachPt).multiplyScalar(0.5);
+        _strapDir.subVectors(ringPt, attachPt).normalize();
+
+        const mesh = strapMeshes[i];
+        mesh.position.copy(_strapMid);
+        mesh.scale.set(1, len, 1);
+
+        // Look outward radially while aligned along strap axis
+        const radial = _tmpV3.subVectors(attachPt, com).setY(0).normalize();
+        const right = new THREE.Vector3().crossVectors(_strapDir, radial).normalize();
+        const forward = new THREE.Vector3().crossVectors(right, _strapDir).normalize();
+        const rotMat = new THREE.Matrix4().makeBasis(right, _strapDir, forward);
+        mesh.quaternion.setFromRotationMatrix(rotMat);
+
+        // Position metallic rivet at attachment point
+        const rv = rivetMeshes[i];
+        rv.position.copy(attachPt).addScaledVector(forward, 0.008);
+        rv.quaternion.setFromUnitVectors(_strapUp, forward);
+      }
+
+      // 3. Position ~34 alternating torus links along the chain from CEILING_ANCHOR to swivel top
+      const chainBottom = _tmpV2.set(0, 0.10, 0).applyQuaternion(swivelGroup.quaternion).add(_ringWorldPos);
+      _chainDir.subVectors(chainBottom, CEILING_ANCHOR);
+      const chainLen = _chainDir.length();
+      _chainDir.normalize();
+      _chainQuat.setFromUnitVectors(_strapUp, _chainDir);
+
+      for (let i = 0; i < CHAIN_LINKS; i++) {
+        const t = (i + 0.5) / CHAIN_LINKS;
+        _bubbleDummy.position.lerpVectors(CEILING_ANCHOR, chainBottom, t);
+        _linkTwist.setFromAxisAngle(_strapUp, (i % 2) * (Math.PI * 0.5) + 0.3);
+        _bubbleDummy.quaternion.copy(_chainQuat).multiply(_linkTwist);
+        _bubbleDummy.scale.setScalar(1.0);
+        _bubbleDummy.updateMatrix();
+        chainInstanced.setMatrixAt(i, _bubbleDummy.matrix);
+      }
+      chainInstanced.instanceMatrix.needsUpdate = true;
+
+      // 4. Update planar projected shadow on the floor
+      // Project bag center of mass c from LIGHT_POS onto y = FLOOR_Y + 0.004
+      const tProj = (FLOOR_Y + 0.004 - LIGHT_POS.y) / (com.y - LIGHT_POS.y);
+      const shadowX = LIGHT_POS.x + (com.x - LIGHT_POS.x) * tProj;
+      const shadowZ = LIGHT_POS.z + (com.z - LIGHT_POS.z) * tProj;
+      planarShadowMesh.position.set(shadowX, FLOOR_Y + 0.004, shadowZ);
+
+      // Stretch shadow mildly when bag swings/tilts
+      const bagAxis = _tmpV3.set(0, 1, 0).applyMatrix3(shapeRotMat3);
+      const tiltLen = Math.hypot(bagAxis.x, bagAxis.z);
+      const tiltAngle = Math.atan2(bagAxis.x, bagAxis.z);
+      planarShadowMesh.rotation.z = -tiltAngle;
+      planarShadowMesh.scale.set(1.0, 1.0 + tiltLen * 0.55, 1.0);
+    }
+
+    // ============================================================================
+    // 12. TWO RED LEATHER BOXING GLOVES (FIST, THUMB, CUFF, WHITE BAND, LINING)
+    // ============================================================================
+    function createBoxingGloveMesh(isRightHand = false) {
+      const group = new THREE.Group();
+      const sign = isRightHand ? 1 : -1;
+
+      const redLeatherMat = new THREE.MeshPhysicalMaterial({
+        color: 0xd91929,
+        roughness: 0.28,
+        metalness: 0.04,
+        clearcoat: 0.65,
+        clearcoatRoughness: 0.18,
+        sheen: 0.25,
+        sheenColor: 0xff6b78
+      });
+
+      const whiteStrapMat = new THREE.MeshStandardMaterial({
+        color: 0xf4f1ea,
+        roughness: 0.38,
+        metalness: 0.05
+      });
+
+      const darkLiningMat = new THREE.MeshStandardMaterial({
+        color: 0x0c0a0a,
+        roughness: 0.85,
+        metalness: 0.0
+      });
+
+      // Rounded padded fist
+      const fistGeo = new THREE.SphereGeometry(0.155, 24, 20);
+      fistGeo.scale(1.02, 0.88, 1.24);
+      const fistMesh = new THREE.Mesh(fistGeo, redLeatherMat);
+      fistMesh.position.set(0, 0.01, 0.05);
+      group.add(fistMesh);
+
+      // Knuckle ridge pad
+      const knuckleGeo = new THREE.SphereGeometry(0.125, 20, 16);
+      knuckleGeo.scale(1.08, 0.68, 0.85);
+      const knuckleMesh = new THREE.Mesh(knuckleGeo, redLeatherMat);
+      knuckleMesh.position.set(0, 0.042, 0.11);
+      group.add(knuckleMesh);
+
+      // Tucked thumb on inner side
+      const thumbGeo = new THREE.CapsuleGeometry(0.052, 0.095, 10, 16);
+      const thumbMesh = new THREE.Mesh(thumbGeo, redLeatherMat);
+      thumbMesh.position.set(-sign * 0.135, -0.015, 0.045);
+      thumbMesh.rotation.x = Math.PI * 0.38;
+      thumbMesh.rotation.z = sign * 0.28;
+      group.add(thumbMesh);
+
+      // Grip bar underneath palm
+      const palmBar = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.036, 0.11, 8, 12),
+        redLeatherMat
+      );
+      palmBar.rotation.z = Math.PI * 0.5;
+      palmBar.position.set(0, -0.095, 0.03);
+      group.add(palmBar);
+
+      // Wrist cuff
+      const cuffGeo = new THREE.CylinderGeometry(0.108, 0.118, 0.16, 24);
+      cuffGeo.rotateX(Math.PI * 0.5);
+      const cuffMesh = new THREE.Mesh(cuffGeo, redLeatherMat);
+      cuffMesh.position.set(0, -0.01, -0.145);
+      group.add(cuffMesh);
+
+      // White velcro band around the cuff
+      const bandGeo = new THREE.CylinderGeometry(0.114, 0.117, 0.058, 24);
+      bandGeo.rotateX(Math.PI * 0.5);
+      const bandMesh = new THREE.Mesh(bandGeo, whiteStrapMat);
+      bandMesh.position.set(0, -0.01, -0.135);
+      group.add(bandMesh);
+
+      // Cuff rim torus + dark inner lining
+      const rimTorus = new THREE.Mesh(
+        new THREE.TorusGeometry(0.106, 0.016, 12, 24),
+        redLeatherMat
+      );
+      rimTorus.position.set(0, -0.01, -0.225);
+      group.add(rimTorus);
+
+      const liningDisc = new THREE.Mesh(
+        new THREE.CircleGeometry(0.102, 20),
+        darkLiningMat
+      );
+      liningDisc.rotation.y = Math.PI;
+      liningDisc.position.set(0, -0.01, -0.226);
+      group.add(liningDisc);
+
+      group.visible = false;
+      scene.add(group);
+      return group;
+    }
+
+    const leftGlove = createBoxingGloveMesh(false);
+    const rightGlove = createBoxingGloveMesh(true);
+    const activePunches = [];
+
+    // ============================================================================
+    // 13. CUSTOM ORBIT CAMERA WITH SETVIEWOFFSET FRAMING
+    // ============================================================================
+    const camOrbit = {
+      theta: 0.0,
+      phi: 1.48,
+      targetTheta: 0.0,
+      targetPhi: 1.48,
+      distance: 3.35,
+      targetDistance: 3.35,
+      lookTarget: new THREE.Vector3(0, 0.04, 0),
+      keys: { left: false, right: false, up: false, down: false }
+    };
+
+    function updateCameraViewOffsetAndProjection() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+
+      const panel = document.getElementById('ui-panel');
+      const rect = panel.getBoundingClientRect();
+      const isMobile = w <= 768;
+
+      if (isMobile) {
+        // Shift optical center upward so the bag stays framed above the bottom sheet
+        const sheetH = rect.height || h * 0.4;
+        const shiftY = Math.round(sheetH * 0.42);
+        camera.setViewOffset(w, h, 0, shiftY, w, h);
+      } else {
+        // Shift optical center left so the bag stays framed beside the right UI panel
+        const panelW = rect.width || 288;
+        const shiftX = Math.round(panelW * 0.46);
+        camera.setViewOffset(w, h, shiftX, 0, w, h);
+      }
+      camera.updateProjectionMatrix();
+    }
+
+    function updateCameraTransform(dt) {
+      const rotSpeed = 1.65;
+      if (camOrbit.keys.left) camOrbit.targetTheta -= rotSpeed * dt;
+      if (camOrbit.keys.right) camOrbit.targetTheta += rotSpeed * dt;
+      if (camOrbit.keys.up) camOrbit.targetPhi -= rotSpeed * 0.7 * dt;
+      if (camOrbit.keys.down) camOrbit.targetPhi += rotSpeed * 0.7 * dt;
+
+      camOrbit.targetPhi = Math.max(0.78, Math.min(1.88, camOrbit.targetPhi));
+      camOrbit.targetDistance = Math.max(2.15, Math.min(5.4, camOrbit.targetDistance));
+
+      const damp = 1.0 - Math.exp(-12.0 * dt);
+      camOrbit.theta += (camOrbit.targetTheta - camOrbit.theta) * damp;
+      camOrbit.phi += (camOrbit.targetPhi - camOrbit.phi) * damp;
+      camOrbit.distance += (camOrbit.targetDistance - camOrbit.distance) * damp;
+
+      const sinPhi = Math.sin(camOrbit.phi);
+      const cosPhi = Math.cos(camOrbit.phi);
+      camera.position.set(
+        camOrbit.lookTarget.x + camOrbit.distance * sinPhi * Math.sin(camOrbit.theta),
+        camOrbit.lookTarget.y + camOrbit.distance * cosPhi,
+        camOrbit.lookTarget.z + camOrbit.distance * sinPhi * Math.cos(camOrbit.theta)
+      );
+      camera.lookAt(camOrbit.lookTarget);
+
+      // Tie fog density to camera distance so the bag never disappears on mobile or when zoomed out
+      scene.fog.density = 0.34 / (camOrbit.distance + 0.55);
+    }
+
+    updateCameraViewOffsetAndProjection();
+    window.addEventListener('resize', updateCameraViewOffsetAndProjection);
+
+    // ============================================================================
+    // 14. SPHERE TRACING THE BAG SDF IN BODY SPACE
+    // ============================================================================
+    const _raycaster = new THREE.Raycaster();
+    const _ndc = new THREE.Vector2();
+
+    function getWorldRayFromClient(clientX, clientY) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      _ndc.x = (clientX / w) * 2.0 - 1.0;
+      _ndc.y = -(clientY / h) * 2.0 + 1.0;
+      _raycaster.setFromCamera(_ndc, camera);
+      return _raycaster.ray;
+    }
+
+    function sphereTraceBag(worldOrigin, worldDir) {
+      // Transform ray into the bag's rest/body space: p_body = R^T (p_world - c) + c0
+      const ro = new THREE.Vector3()
+        .subVectors(worldOrigin, com)
+        .applyMatrix3(shapeRotInvMat3)
+        .add(com0);
+
+      const rd = new THREE.Vector3()
+        .copy(worldDir)
+        .applyMatrix3(shapeRotInvMat3)
+        .normalize();
+
+      // Quick bounding sphere check in body space
+      const b = ro.dot(rd);
+      const cSphere = ro.dot(ro) - 1.15 * 1.15;
+      if (b > 0.0 && cSphere > 0.0) return null;
+      const disc = b * b - cSphere;
+      if (disc < 0.0) return null;
+
+      let t = Math.max(0.05, -b - Math.sqrt(disc));
+      const maxT = -b + Math.sqrt(disc) + 0.35;
+      const p = new THREE.Vector3();
+
+      for (let step = 0; step < 52; step++) {
+        p.copy(ro).addScaledVector(rd, t);
+        const d = bagSDF(p.x, p.y, p.z);
+        if (d < 0.0025) {
+          const nBody = bagSDFGrad(p.x, p.y, p.z, new THREE.Vector3());
+          const nWorld = nBody.clone().applyMatrix3(shapeRotMat3).normalize();
+          const hitWorld = evaluateDeformedPointWorld(p, new THREE.Vector3());
+          return {
+            bodyPoint: p.clone(),
+            worldPoint: hitWorld,
+            worldNormal: nWorld,
+            rayDir: worldDir.clone().normalize(),
+            distance: hitWorld.distanceTo(worldOrigin)
+          };
+        }
+        t += Math.max(d * 0.85, 0.004);
+        if (t > maxT) break;
+      }
+      return null;
+    }
+
+    // ============================================================================
+    // 15. PUNCHING, IMPULSE APPLICATION, SCORING & FLOATING GOLD NUMBERS
+    // ============================================================================
+    function getRankForForce(kg) {
+      if (kg < 300) return 'Featherweight';
+      if (kg < 480) return 'Lightweight';
+      if (kg < 650) return 'Middleweight';
+      if (kg < 820) return 'Heavyweight';
+      return 'Knockout!';
+    }
+
+    function spawnFloatingForceNumber(worldPoint, forceKg, combo) {
+      const layer = document.getElementById('popups-layer');
+      const proj = worldPoint.clone().project(camera);
+      const x = (proj.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-proj.y * 0.5 + 0.5) * window.innerHeight;
+
+      const el = document.createElement('div');
+      el.className = 'force-popup';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+
+      const comboHtml = combo > 1 ? `<span class="combo-tag">×${combo}</span>` : '';
+      el.innerHTML = `${forceKg}<span class="unit">KG</span>${comboHtml}`;
+      layer.appendChild(el);
+      setTimeout(() => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 950);
+    }
+
+    function applyPunchImpact(hitInfo, power) {
+      // Actual deformed world hit point at moment of impact
+      const impactWorld = evaluateDeformedPointWorld(hitInfo.bodyPoint, new THREE.Vector3());
+      const nWorld = bagSDFGrad(hitInfo.bodyPoint.x, hitInfo.bodyPoint.y, hitInfo.bodyPoint.z, new THREE.Vector3())
+        .applyMatrix3(shapeRotMat3)
+        .normalize();
+
+      // Blend camera ray direction with inverse surface normal
+      const invNormal = nWorld.clone().negate();
+      const impulseDir = hitInfo.rayDir.clone().lerp(invNormal, 0.38).normalize();
+
+      const strength = 6.0 + power * 15.0;
+      const inv2Sigma2 = 1.0 / (2.0 * 0.20 * 0.20); // Gaussian falloff σ = 0.2
+
+      for (let i = 0; i < NODE_COUNT; i++) {
+        const d2 = nodePos[i].distanceToSquared(impactWorld);
+        const w = Math.exp(-d2 * inv2Sigma2);
+        nodeVel[i].addScaledVector(impulseDir, strength * w);
+      }
+
+      // Update combo & score
+      const nowSec = performance.now() * 0.001;
+      if (nowSec - state.lastHitTime <= 2.4) {
+        state.combo += 1;
+      } else {
+        state.combo = 1;
+      }
+      state.lastHitTime = nowSec;
+      state.punches += 1;
+
+      const jitter = 0.965 + Math.random() * 0.07;
+      const comboBonus = 1.0 + Math.min(state.combo - 1, 10) * 0.04;
+      const forceKg = Math.round((170.0 + power * 790.0) * jitter * comboBonus);
+      state.lastForce = forceKg;
+
+      const isNewBest = forceKg > state.bestForce;
+      if (isNewBest) {
+        state.bestForce = forceKg;
+        try {
+          localStorage.setItem(STORAGE_KEY, String(state.bestForce));
+        } catch (e) {}
+      }
+
+      // Play audio
+      sound.playPunch(power);
+      if (isNewBest) {
+        sound.playBellDing();
+      }
+
+      // Update Scoreboard UI
+      const forceEl = document.getElementById('force-readout');
+      forceEl.textContent = String(forceKg);
+      forceEl.classList.remove('bump');
+      void forceEl.offsetWidth;
+      forceEl.classList.add('bump');
+
+      const rankEl = document.getElementById('rank-readout');
+      rankEl.textContent = getRankForForce(forceKg);
+      const bestPill = document.getElementById('new-best-pill');
+      if (isNewBest) {
+        rankEl.classList.add('new-best');
+        bestPill.classList.add('visible');
+      } else {
+        rankEl.classList.remove('new-best');
+        bestPill.classList.remove('visible');
+      }
+
+      const meterPct = Math.min(100, Math.max(4, ((forceKg - 140) / 920) * 100));
+      document.getElementById('meter-fill').style.width = `${meterPct.toFixed(1)}%`;
+      document.getElementById('force-meter-bar').setAttribute('aria-valuenow', String(forceKg));
+
+      document.getElementById('stat-best').textContent = String(state.bestForce);
+      document.getElementById('stat-punches').textContent = String(state.punches);
+      const comboEl = document.getElementById('stat-combo');
+      comboEl.textContent = `×${state.combo}`;
+      comboEl.classList.toggle('combo-hot', state.combo >= 3);
+
+      // Floating gold force readout at 3D impact point
+      spawnFloatingForceNumber(impactWorld, forceKg, state.combo);
+    }
+
+    function triggerPunch(hitInfo, power) {
+      const clampedPower = Math.max(0.28, Math.min(1.0, power));
+      if (!state.glovesVisible) {
+        // Gloves hidden: apply impulse immediately
+        applyPunchImpact(hitInfo, clampedPower);
+        return;
+      }
+
+      const hand = state.nextGloveHand;
+      state.nextGloveHand = 1 - hand;
+      const gloveMesh = hand === 0 ? leftGlove : rightGlove;
+
+      // Compute camera-relative origin beside/below the camera
+      const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+      const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+      const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+
+      const sideSign = hand === 0 ? -1 : 1;
+      const startPos = camera.position.clone()
+        .addScaledVector(camRight, sideSign * 0.46)
+        .addScaledVector(camUp, -0.34)
+        .addScaledVector(camForward, 0.58);
+
+      activePunches.push({
+        glove: gloveMesh,
+        hand,
+        startPos,
+        hitInfo,
+        power: clampedPower,
+        elapsed: 0.0,
+        impactApplied: false
+      });
+    }
+
+    function updateGloveAnimations(dt) {
+      leftGlove.visible = false;
+      rightGlove.visible = false;
+
+      for (let i = activePunches.length - 1; i >= 0; i--) {
+        const p = activePunches[i];
+        p.elapsed += dt;
+        const t = p.elapsed;
+
+        if (!p.impactApplied && t >= 0.075) {
+          p.impactApplied = true;
+          applyPunchImpact(p.hitInfo, p.power);
+        }
+
+        if (t >= 0.30) {
+          activePunches.splice(i, 1);
+          continue;
+        }
+
+        if (!state.glovesVisible) continue;
+
+        const targetWorld = evaluateDeformedPointWorld(p.hitInfo.bodyPoint, new THREE.Vector3());
+        const punchDir = new THREE.Vector3().subVectors(targetWorld, p.startPos).normalize();
+        // Keep glove surface slightly outside the jelly skin on contact
+        const contactPos = targetWorld.clone().addScaledVector(punchDir, -0.11 + p.power * 0.04);
+
+        let u = 0.0;
+        if (t < 0.075) {
+          // Fast snap in (0 -> 0.075s)
+          const k = t / 0.075;
+          u = 1.0 - Math.pow(1.0 - k, 2.6);
+        } else if (t < 0.125) {
+          // Brief hold/follow-through compression (0.075s -> 0.125s)
+          u = 1.0;
+        } else {
+          // Smooth pullback (0.125s -> 0.30s)
+          const k = (t - 0.125) / 0.175;
+          u = 1.0 - k * k * (3.0 - 2.0 * k);
+        }
+
+        p.glove.visible = true;
+        p.glove.position.lerpVectors(p.startPos, contactPos, u);
+        p.glove.lookAt(targetWorld.clone().addScaledVector(punchDir, 0.5));
+        // Natural fist roll on impact
+        p.glove.rotateZ((p.hand === 0 ? -0.35 : 0.35) * u);
+      }
+    }
+
+    // ============================================================================
+    // 16. POINTER, TOUCH & KEYBOARD INPUT (JAB, CHARGE RING, GRAB & ORBIT)
+    // ============================================================================
+    const chargeRingEl = document.getElementById('charge-ring');
+    const chargeLabelEl = document.getElementById('charge-label');
+
+    const pointerState = {
+      down: false,
+      pointerId: null,
+      mode: 'none', // 'bag-pending' | 'bag-grab' | 'orbit'
+      downTime: 0,
+      startX: 0,
+      startY: 0,
+      currX: window.innerWidth * 0.42,
+      currY: window.innerHeight * 0.48,
+      hitInfo: null,
+      pinchDist: 0,
+      activePointers: new Map()
+    };
+
+    const keyChargeState = {
+      active: false,
+      downTime: 0
+    };
+
+    function updateChargeRingUI(nowMs) {
+      let charging = false;
+      let startTime = 0;
+      let cx = pointerState.currX;
+      let cy = pointerState.currY;
+
+      if (pointerState.down && pointerState.mode === 'bag-pending') {
+        const held = nowMs - pointerState.downTime;
+        if (held >= 115) {
+          charging = true;
+          startTime = pointerState.downTime;
+        }
+      } else if (keyChargeState.active) {
+        const held = nowMs - keyChargeState.downTime;
+        if (held >= 115) {
+          charging = true;
+          startTime = keyChargeState.downTime;
+          const proj = com.clone().project(camera);
+          cx = (proj.x * 0.5 + 0.5) * window.innerWidth;
+          cy = (-proj.y * 0.5 + 0.5) * window.innerHeight;
+        }
+      }
+
+      if (!charging) {
+        chargeRingEl.classList.remove('active');
+        chargeLabelEl.classList.remove('active');
+        return;
+      }
+
+      const progress = Math.min(1.0, Math.max(0.0, (nowMs - startTime - 115) / 850));
+      const deg = (progress * 360).toFixed(1);
+      chargeRingEl.style.transform = `translate3d(${cx}px, ${cy}px, 0) scale(${0.92 + progress * 0.16})`;
+      chargeRingEl.style.setProperty('--charge-deg', `${deg}deg`);
+      chargeRingEl.classList.add('active');
+
+      chargeLabelEl.style.left = `${cx}px`;
+      chargeLabelEl.style.top = `${cy}px`;
+      chargeLabelEl.textContent = `${Math.round(35 + progress * 65)}%`;
+      chargeLabelEl.classList.add('active');
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      canvas.focus();
+      pointerState.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointerState.activePointers.size === 2) {
+        // Two-finger pinch zoom on touch devices
+        const pts = Array.from(pointerState.activePointers.values());
+        pointerState.pinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        pointerState.mode = 'pinch';
+        grabState.active = false;
+        return;
+      }
+
+      pointerState.down = true;
+      pointerState.pointerId = e.pointerId;
+      pointerState.downTime = performance.now();
+      pointerState.startX = e.clientX;
+      pointerState.startY = e.clientY;
+      pointerState.currX = e.clientX;
+      pointerState.currY = e.clientY;
+
+      const ray = getWorldRayFromClient(e.clientX, e.clientY);
+      const hit = sphereTraceBag(ray.origin, ray.direction);
+
+      if (hit) {
+        pointerState.mode = 'bag-pending';
+        pointerState.hitInfo = hit;
+      } else {
+        pointerState.mode = 'orbit';
+        canvas.classList.add('orbiting');
+      }
+
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch (err) {}
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (pointerState.activePointers.has(e.pointerId)) {
+        pointerState.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+
+      if (pointerState.activePointers.size === 2 && pointerState.mode === 'pinch') {
+        const pts = Array.from(pointerState.activePointers.values());
+        const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (pointerState.pinchDist > 10) {
+          const delta = pointerState.pinchDist - d;
+          camOrbit.targetDistance += delta * 0.008;
+        }
+        pointerState.pinchDist = d;
+        return;
+      }
+
+      if (!pointerState.down || e.pointerId !== pointerState.pointerId) return;
+
+      const dx = e.clientX - pointerState.currX;
+      const dy = e.clientY - pointerState.currY;
+      pointerState.currX = e.clientX;
+      pointerState.currY = e.clientY;
+
+      const totalMove = Math.hypot(e.clientX - pointerState.startX, e.clientY - pointerState.startY);
+
+      if (pointerState.mode === 'bag-pending' && totalMove > 11) {
+        // User dragged the bag itself -> grab & swing it on its chain
+        pointerState.mode = 'bag-grab';
+        grabState.active = true;
+        grabState.localBodyPt.copy(pointerState.hitInfo.bodyPoint);
+        grabState.grabDistance = pointerState.hitInfo.distance;
+        canvas.classList.add('grabbing');
+      }
+
+      if (pointerState.mode === 'bag-grab') {
+        const ray = getWorldRayFromClient(e.clientX, e.clientY);
+        grabState.targetWorldPt.copy(ray.origin).addScaledVector(ray.direction, grabState.grabDistance);
+      } else if (pointerState.mode === 'orbit') {
+        camOrbit.targetTheta -= dx * 0.0065;
+        camOrbit.targetPhi -= dy * 0.0052;
+      }
+    });
+
+    function finishPointerInteraction(e) {
+      pointerState.activePointers.delete(e.pointerId);
+      if (!pointerState.down || e.pointerId !== pointerState.pointerId) return;
+
+      const heldMs = performance.now() - pointerState.downTime;
+      if (pointerState.mode === 'bag-pending' && pointerState.hitInfo) {
+        // Re-trace at current cursor or use initial hit
+        const ray = getWorldRayFromClient(pointerState.currX, pointerState.currY);
+        const latestHit = sphereTraceBag(ray.origin, ray.direction) || pointerState.hitInfo;
+        let power;
+        if (heldMs < 160) {
+          power = 0.32 + Math.random() * 0.20;
+        } else {
+          const chargeNorm = Math.min(1.0, (heldMs - 115) / 850);
+          power = 0.35 + 0.65 * chargeNorm;
+        }
+        triggerPunch(latestHit, power);
+      }
+
+      pointerState.down = false;
+      pointerState.mode = 'none';
+      pointerState.hitInfo = null;
+      grabState.active = false;
+      canvas.classList.remove('grabbing', 'orbiting');
+    }
+
+    canvas.addEventListener('pointerup', finishPointerInteraction);
+    canvas.addEventListener('pointercancel', finishPointerInteraction);
+
+    // Wheel zoom
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      camOrbit.targetDistance += e.deltaY * 0.0022;
+    }, { passive: false });
+
+    // Aim punch at center of the bag (used by Space & Enter keyboard shortcuts)
+    function fireKeyboardPunch(power) {
+      const targetAim = com.clone().add(new THREE.Vector3(
+        (Math.random() - 0.5) * 0.22,
+        (Math.random() - 0.5) * 0.26,
+        0
+      ));
+      const dir = targetAim.sub(camera.position).normalize();
+      const hit = sphereTraceBag(camera.position, dir);
+      if (hit) {
+        triggerPunch(hit, power);
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'ArrowLeft') { camOrbit.keys.left = true; e.preventDefault(); }
+      if (e.code === 'ArrowRight') { camOrbit.keys.right = true; e.preventDefault(); }
+      if (e.code === 'ArrowUp') { camOrbit.keys.up = true; e.preventDefault(); }
+      if (e.code === 'ArrowDown') { camOrbit.keys.down = true; e.preventDefault(); }
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!e.repeat && !keyChargeState.active) {
+          keyChargeState.active = true;
+          keyChargeState.downTime = performance.now();
+        }
+      } else if (e.code === 'Enter') {
+        e.preventDefault();
+        if (!e.repeat) {
+          fireKeyboardPunch(0.34 + Math.random() * 0.18);
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'ArrowLeft') camOrbit.keys.left = false;
+      if (e.code === 'ArrowRight') camOrbit.keys.right = false;
+      if (e.code === 'ArrowUp') camOrbit.keys.up = false;
+      if (e.code === 'ArrowDown') camOrbit.keys.down = false;
+
+      if (e.code === 'Space' && keyChargeState.active) {
+        e.preventDefault();
+        const heldMs = performance.now() - keyChargeState.downTime;
+        keyChargeState.active = false;
+        let power;
+        if (heldMs < 160) {
+          power = 0.32 + Math.random() * 0.20;
+        } else {
+          const chargeNorm = Math.min(1.0, (heldMs - 115) / 850);
+          power = 0.35 + 0.65 * chargeNorm;
+        }
+        fireKeyboardPunch(power);
+      }
+    });
+
+    // ============================================================================
+    // 17. UI CONTROLS BINDING (FLAVOURS, WRAPS, SLIDERS, TOGGLES, RESET)
+    // ============================================================================
+    function applyFlavour(flavourKey) {
+      const flv = FLAVOURS[flavourKey];
+      if (!flv) return;
+      state.flavour = flavourKey;
+
+      jellyMat.color.set(flv.color);
+      jellyMat.attenuationColor.set(flv.attenuation);
+      jellyMat.sheenColor.set(flv.sheen);
+      jellyMat.emissive.set(flv.emissive);
+
+      bubbleMat.emissive.set(flv.sheen);
+      planarShadowMat.uniforms.uTint.value.set(flv.shadowTint);
+      planarShadowMat.uniforms.uCoreTint.value.set(flv.color);
+
+      document.documentElement.style.setProperty('--accent', flv.accent);
+      document.getElementById('flavour-active-label').textContent = flv.name;
+
+      document.querySelectorAll('[data-flavour]').forEach((btn) => {
+        const active = btn.getAttribute('data-flavour') === flavourKey;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-checked', String(active));
+      });
+    }
+
+    function applyWrap(wrapIdx) {
+      state.wrap = wrapIdx;
+      deformUniforms.uWrapMode.value = wrapIdx;
+      document.getElementById('wrap-active-label').textContent = WRAP_NAMES[wrapIdx] || 'Classic';
+
+      document.querySelectorAll('[data-wrap]').forEach((btn) => {
+        const active = parseInt(btn.getAttribute('data-wrap'), 10) === wrapIdx;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-checked', String(active));
+      });
+    }
+
+    document.querySelectorAll('[data-flavour]').forEach((btn) => {
+      btn.addEventListener('click', () => applyFlavour(btn.getAttribute('data-flavour')));
+    });
+
+    document.querySelectorAll('[data-wrap]').forEach((btn) => {
+      btn.addEventListener('click', () => applyWrap(parseInt(btn.getAttribute('data-wrap'), 10)));
+    });
+
+    const toggleGlovesBtn = document.getElementById('toggle-gloves');
+    toggleGlovesBtn.addEventListener('click', () => {
+      state.glovesVisible = !state.glovesVisible;
+      toggleGlovesBtn.setAttribute('aria-pressed', String(state.glovesVisible));
+    });
+
+    const toggleSoundBtn = document.getElementById('toggle-sound');
+    toggleSoundBtn.addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      toggleSoundBtn.setAttribute('aria-pressed', String(state.soundEnabled));
+      if (state.soundEnabled) {
+        sound.ensureContext();
+      }
+    });
+
+    const sliderFirmness = document.getElementById('slider-firmness');
+    const valFirmness = document.getElementById('val-firmness');
+    sliderFirmness.addEventListener('input', () => {
+      state.firmness = parseInt(sliderFirmness.value, 10);
+      valFirmness.textContent = String(state.firmness);
+    });
+
+    const sliderDamping = document.getElementById('slider-damping');
+    const valDamping = document.getElementById('val-damping');
+    sliderDamping.addEventListener('input', () => {
+      state.damping = parseInt(sliderDamping.value, 10);
+      valDamping.textContent = String(state.damping);
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      state.lastForce = 0;
+      state.bestForce = 0;
+      state.punches = 0;
+      state.combo = 0;
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (e) {}
+
+      document.getElementById('force-readout').textContent = '0';
+      const rankEl = document.getElementById('rank-readout');
+      rankEl.textContent = 'Ready to Spar';
+      rankEl.classList.remove('new-best');
+      document.getElementById('new-best-pill').classList.remove('visible');
+      document.getElementById('meter-fill').style.width = '0%';
+      document.getElementById('force-meter-bar').setAttribute('aria-valuenow', '0');
+      document.getElementById('stat-best').textContent = '0';
+      document.getElementById('stat-punches').textContent = '0';
+      const comboEl = document.getElementById('stat-combo');
+      comboEl.textContent = '×0';
+      comboEl.classList.remove('combo-hot');
+    });
+
+    // ============================================================================
+    // 18. MAIN ANIMATION LOOP
+    // ============================================================================
+    let lastFrameTime = performance.now();
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+
+      const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) * 0.001));
+      lastFrameTime = now;
+      const nowSec = now * 0.001;
+
+      // Decay combo display if idle beyond window
+      if (state.combo > 0 && nowSec - state.lastHitTime > 2.4) {
+        state.combo = 0;
+        const comboEl = document.getElementById('stat-combo');
+        comboEl.textContent = '×0';
+        comboEl.classList.remove('combo-hot');
+      }
+
+      // 1. Step soft-body lattice physics (10 substeps) & upload GPU float residual texture
+      stepPhysicsFrame(dt);
+      updateResidualTexture();
+
+      // 2. Update internal air bubbles, chain links, swivel, leather straps & planar shadow
+      updateBubbles();
+      updateHardwareAndShadow();
+
+      // 3. Drift dust motes in the warm overhead light
+      const posAttr = dustGeo.getAttribute('position');
+      for (let i = 0; i < DUST_COUNT; i++) {
+        const phase = dustPhases[i * 3];
+        const speed = dustPhases[i * 3 + 1];
+        const amp = dustPhases[i * 3 + 2];
+        posAttr.array[i * 3] += Math.sin(nowSec * speed + phase) * amp * dt;
+        posAttr.array[i * 3 + 1] += 0.035 * speed * dt;
+        posAttr.array[i * 3 + 2] += Math.cos(nowSec * speed * 0.8 + phase) * amp * dt;
+        if (posAttr.array[i * 3 + 1] > 1.85) {
+          posAttr.array[i * 3 + 1] = FLOOR_Y + 0.15;
+        }
+      }
+      posAttr.needsUpdate = true;
+
+      // 4. Update boxing gloves & charge ring UI
+      updateGloveAnimations(dt);
+      updateChargeRingUI(now);
+
+      // 5. Update custom orbit camera
+      updateCameraTransform(dt);
+
+      // 6. Render scene (planarShadowMesh has transparent: true so Three.js r160 excludes it from the opaque transmission pass)
+      renderer.render(scene, camera);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
